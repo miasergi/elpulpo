@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { Trophy, ChevronRight, CalendarX2 } from "lucide-react";
+import { Trophy, ChevronRight, CalendarX2, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getMatches, getMyPredictions } from "@/lib/queries";
-import { PredictionCard } from "@/components/match/prediction-card";
+import { getActiveCompetition, getMatches, getMyPredictions, getMyGroups } from "@/lib/queries";
+import { MatchesBrowser } from "@/components/match/matches-browser";
 import { PageHeader } from "@/components/app/page-header";
-import { dayHeading, dayKey } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -21,33 +20,40 @@ export default async function MatchesPage() {
     );
   }
 
-  const [matches, predictions] = await Promise.all([
+  const [matches, predictions, groups] = await Promise.all([
     getMatches(competition.id),
     getMyPredictions(profile.id),
+    getMyGroups(profile.id),
   ]);
-
-  // Group by day
-  const days = new Map<string, typeof matches>();
-  for (const m of matches) {
-    const key = dayKey(m.kickoff_at);
-    if (!days.has(key)) days.set(key, []);
-    days.get(key)!.push(m);
-  }
-
-  const pending = matches.filter(
-    (m) => m.status === "scheduled" && !predictions.has(m.id)
-  ).length;
 
   return (
     <div className="px-5">
-      <PageHeader
-        title="Partidos"
-        subtitle={`${competition.name} · ${pending} sin predecir`}
-      />
+      {/* Non-sticky header so the filter chips can stick to the top. */}
+      <header className="pb-1 pt-4">
+        <h1 className="text-2xl font-bold tracking-tight">Partidos</h1>
+        <p className="text-sm text-muted">{competition.name}</p>
+      </header>
+
+      <Link
+        href={groups.length > 0 ? "/app/groups" : "/app/groups/join"}
+        className="mb-2 mt-1 flex items-center gap-2 text-xs text-muted"
+      >
+        <Users className="h-3.5 w-3.5 text-pulpo-300" />
+        {groups.length > 0 ? (
+          <>
+            Tus predicciones cuentan en{" "}
+            {groups.length === 1 ? "tu grupo" : `tus ${groups.length} grupos`} automáticamente
+          </>
+        ) : (
+          <span className="text-warning">
+            Únete a un grupo para competir con tus predicciones →
+          </span>
+        )}
+      </Link>
 
       <Link
         href="/app/bonus"
-        className="mt-2 flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-pulpo-500/10 p-3.5"
+        className="mb-1 mt-2 flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-pulpo-500/10 p-3.5"
       >
         <Trophy className="h-5 w-5 text-pulpo-300" />
         <div className="flex-1">
@@ -60,30 +66,12 @@ export default async function MatchesPage() {
       {matches.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-6 pt-2">
-          {[...days.entries()].map(([key, dayMatches]) => (
-            <section key={key}>
-              <h2 className="mb-2 text-sm font-semibold capitalize text-muted">
-                {dayHeading(dayMatches[0].kickoff_at)}
-              </h2>
-              <div className="space-y-3">
-                {dayMatches.map((m) => {
-                  const p = predictions.get(m.id);
-                  return (
-                    <PredictionCard
-                      key={m.id}
-                      match={m}
-                      initialHome={p?.home ?? null}
-                      initialAway={p?.away ?? null}
-                      userId={profile.id}
-                      linkToDetail
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
+        <MatchesBrowser
+          matches={matches}
+          predictions={Object.fromEntries(predictions)}
+          userId={profile.id}
+          now={new Date().toISOString()}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Lock, Trophy, Check, Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -81,6 +82,7 @@ export function BonusForm({
 
 function MarketCard({ market, teams, userId }: { market: Market; teams: Team[]; userId: string }) {
   const closed = market.resolved || (market.closes_at ? new Date(market.closes_at) <= new Date() : false);
+  const router = useRouter();
   const [teamId, setTeamId] = useState(market.current?.team_id ?? "");
   const [text, setText] = useState(market.current?.answer_text ?? "");
   const [saved, setSaved] = useState(false);
@@ -96,10 +98,13 @@ function MarketCard({ market, teams, userId }: { market: Market; teams: Team[]; 
       },
       { onConflict: "user_id,market_id" }
     );
-    if (error) toast.error("No se pudo guardar");
-    else {
+    if (error) {
+      toast.error(/closed/i.test(error.message) ? "Este bonus ya está cerrado" : "No se pudo guardar");
+    } else {
       setSaved(true);
       setTimeout(() => setSaved(false), 1200);
+      // Refresh the RSC payload so back/forward navigation shows the saved answer.
+      router.refresh();
     }
   }
 

@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { getMatches, type MatchRow } from "@/lib/queries";
+import { isLocked } from "@/lib/format";
+import { predictionPoints } from "@/lib/scoring";
 
 export interface StandingRow {
   user_id: string;
@@ -159,6 +162,81 @@ export async function getGroupActivity(groupId: string, competitionId: string): 
   }
 
   return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+export interface GroupUpcomingMatch {
+  match: MatchRow;
+  /** Member ids who already predicted; null if unknown (RPC not available). */
+  predictedIds: string[] | null;
+}
+
+export interface GroupRecentMatch {
+  match: MatchRow;
+  /** One entry per member prediction, sorted by points desc. */
+  predictions: { user_id: string; home: number; away: number; points: number }[];
+}
+
+/** Matchboard for a group: who has predicted the next matches (existence
+ *  only, no scores) and everyone's predictions + points for locked ones. */
+export async function getGroupMatchboard(
+  group: { competition_id: string; pts_exact: number; pts_goal_diff: number; pts_result: number },
+  memberIds: string[]
+): Promise<{ upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] }> {
+  const supabase = await createClient();
+  const matches = await getMatches(group.competition_id);
+
+  const open = matches.filter((m) => !isLocked(m.status, m.kickoff_at)).slice(0, 6);
+  const locked = matches
+    .filter((m) => isLocked(m.status, m.kickoff_at))
+    .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime())
+    .slice(0, 10);
+
+  const [{ data: who, error: whoError }, { data: preds }] = await Promise.all([
+    open.length > 0
+      ? supabase.rpc("predicted_user_ids", { mids: open.map((m) => m.id) })
+      : Promise.resolve({ data: [], error: null }),
+    locked.length > 0
+      ? supabase
+          .from("predictions")
+          .select("match_id, user_id, home_score, away_score")
+          .in("match_id", locked.map((m) => m.id))
+          .in("user_id", memberIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const memberSet = new Set(memberIds);
+  const whoByMatch = new Map<string, string[]>();
+  for (const r of (who as { match_id: string; user_id: string }[] | null) ?? []) {
+    if (!memberSet.has(r.user_id)) continue;
+    if (!whoByMatch.has(r.match_id)) whoByMatch.set(r.match_id, []);
+    whoByMatch.get(r.match_id)!.push(r.user_id);
+  }
+
+  const pts = { exact: group.pts_exact, diff: group.pts_goal_diff, result: group.pts_result };
+  const predsByMatch = new Map<string, GroupRecentMatch["predictions"]>();
+  for (const p of preds ?? []) {
+    const m = locked.find((x) => x.id === p.match_id);
+    if (!m) continue;
+    if (!predsByMatch.has(p.match_id)) predsByMatch.set(p.match_id, []);
+    predsByMatch.get(p.match_id)!.push({
+      user_id: p.user_id,
+      home: p.home_score,
+      away: p.away_score,
+      points: predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts),
+    });
+  }
+
+  return {
+    upcoming: open.map((match) => ({
+      match,
+      // If the RPC is missing (migration not applied yet) degrade to "unknown".
+      predictedIds: whoError ? null : whoByMatch.get(match.id) ?? [],
+    })),
+    recent: locked.map((match) => ({
+      match,
+      predictions: (predsByMatch.get(match.id) ?? []).sort((a, b) => b.points - a.points),
+    })),
+  };
 }
 
 /** My rank + points in several groups at once (one query, no N+1). */

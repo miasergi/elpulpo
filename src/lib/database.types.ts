@@ -196,6 +196,10 @@ export interface Database {
     };
     Functions: {
       join_group_by_code: { Args: { code: string }; Returns: string };
+      predicted_user_ids: {
+        Args: { mids: string[] };
+        Returns: { match_id: string; user_id: string }[];
+      };
       create_group: {
         Args: {
           p_name: string;

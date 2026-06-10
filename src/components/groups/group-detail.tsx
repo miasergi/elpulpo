@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper, CalendarClock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -14,10 +15,11 @@ import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
 import { ActivityFeed } from "./activity-feed";
 import { GroupIcon } from "./group-icon";
+import { GroupMatches } from "./group-matches";
 import { ScoringEditor } from "./scoring-editor";
-import type { StandingRow, ActivityItem } from "@/lib/groups";
+import type { StandingRow, ActivityItem, GroupUpcomingMatch, GroupRecentMatch } from "@/lib/groups";
 
-type Tab = "ranking" | "activity" | "chat" | "info";
+type Tab = "ranking" | "matches" | "activity" | "chat" | "info";
 
 interface Member {
   role: string;
@@ -29,6 +31,7 @@ export function GroupDetail({
   standings,
   members,
   activity,
+  matchboard,
   currentUserId,
 }: {
   group: {
@@ -46,6 +49,7 @@ export function GroupDetail({
   standings: StandingRow[];
   members: Member[];
   activity: ActivityItem[];
+  matchboard: { upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] };
   currentUserId: string;
 }) {
   const [tab, setTab] = useState<Tab>("ranking");
@@ -72,10 +76,13 @@ export function GroupDetail({
 
   const tabs: { key: Tab; label: string; icon: typeof Trophy }[] = [
     { key: "ranking", label: "Ranking", icon: Trophy },
+    { key: "matches", label: "Partidos", icon: CalendarClock },
     { key: "activity", label: "Actividad", icon: Newspaper },
     { key: "chat", label: "Chat", icon: MessageCircle },
     { key: "info", label: "Info", icon: Info },
   ];
+
+  const me = standings.find((s) => s.user_id === currentUserId);
 
   return (
     <div>
@@ -89,7 +96,9 @@ export function GroupDetail({
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-bold">{group.name}</h1>
-          <p className="text-sm text-muted">{members.length} jugadores</p>
+          <p className="text-sm text-muted">
+            {members.length} jugadores · <span className="text-pitch-400">estás participando</span>
+          </p>
         </div>
       </div>
 
@@ -100,7 +109,7 @@ export function GroupDetail({
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 border-b-2 py-3 text-sm font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-1 border-b-2 py-2.5 text-[11px] font-medium transition-colors",
               tab === t.key
                 ? "border-primary text-pulpo-200"
                 : "border-transparent text-muted-foreground"
@@ -112,7 +121,32 @@ export function GroupDetail({
       </div>
 
       <div className="pt-4">
-        {tab === "ranking" && <StandingsList rows={standings} currentUserId={currentUserId} />}
+        {tab === "ranking" && (
+          <>
+            {me && me.played === 0 && (
+              <Link
+                href="/app/matches"
+                className="mb-3 flex items-start gap-2.5 rounded-lg border border-pulpo-500/40 bg-pulpo-500/10 p-3 text-sm"
+              >
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-pulpo-300" />
+                <span className="text-muted">
+                  Estás dentro: tus predicciones cuentan aquí automáticamente.{" "}
+                  <span className="font-medium text-pulpo-200">Predice los próximos partidos →</span>
+                </span>
+              </Link>
+            )}
+            <StandingsList rows={standings} currentUserId={currentUserId} />
+          </>
+        )}
+
+        {tab === "matches" && (
+          <GroupMatches
+            upcoming={matchboard.upcoming}
+            recent={matchboard.recent}
+            profiles={members.flatMap((m) => (m.profile ? [m.profile] : []))}
+            currentUserId={currentUserId}
+          />
+        )}
 
         {tab === "activity" && <ActivityFeed items={activity} />}
 

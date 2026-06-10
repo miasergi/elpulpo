@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { getGroup, getGroupMembers, getStandings, getGroupActivity } from "@/lib/groups";
+import { getGroup, getGroupMembers, getStandings, getGroupActivity, getGroupMatchboard } from "@/lib/groups";
 import { GroupDetail } from "@/components/groups/group-detail";
 import { BackHeader } from "@/components/app/back-header";
 
@@ -17,9 +17,10 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const isMember = members.some((m) => m.profile?.id === profile.id);
   if (!isMember) redirect("/app/groups");
 
-  const [standings, activity] = await Promise.all([
+  const [standings, activity, matchboard] = await Promise.all([
     getStandings(id),
     getGroupActivity(id, group.competition_id),
+    getGroupMatchboard(group, members.flatMap((m) => (m.profile ? [m.profile.id] : []))),
   ]);
 
   return (
@@ -30,6 +31,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
         standings={standings}
         members={members}
         activity={activity}
+        matchboard={matchboard}
         currentUserId={profile.id}
       />
     </div>

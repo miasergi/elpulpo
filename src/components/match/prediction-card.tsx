@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Minus, Plus, Check, Lock, Users, Target } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -38,6 +39,7 @@ export function PredictionCard({
   linkToDetail?: boolean;
 }) {
   const locked = isLocked(match.status, match.kickoff_at);
+  const router = useRouter();
   const [home, setHome] = useState<number | null>(initialHome);
   const [away, setAway] = useState<number | null>(initialAway);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
@@ -57,6 +59,12 @@ export function PredictionCard({
     if (home === initialHome && away === initialAway) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
+      // Re-check at save time: the page may have been open since before kickoff.
+      if (isLocked(match.status, match.kickoff_at)) {
+        toast.error("El partido ya ha empezado: predicción cerrada");
+        router.refresh();
+        return;
+      }
       setState("saving");
       const supabase = createClient();
       const { error } = await supabase
@@ -67,10 +75,17 @@ export function PredictionCard({
         );
       if (error) {
         setState("idle");
-        toast.error("No se pudo guardar la predicción");
+        toast.error(
+          /locked/i.test(error.message)
+            ? "El partido ya ha empezado: predicción cerrada"
+            : "No se pudo guardar la predicción"
+        );
       } else {
         setState("saved");
         playTick("success");
+        // Refresh the RSC payload so back/forward navigation shows the
+        // saved prediction (pages are reused from the client cache).
+        router.refresh();
       }
     }, 700);
     return () => {

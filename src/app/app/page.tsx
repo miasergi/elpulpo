@@ -11,6 +11,7 @@ import {
 import { getMyStandings } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
 import { GettingStarted } from "@/components/app/getting-started";
+import { WorldCupHero } from "@/components/app/world-cup-hero";
 import { GroupIcon } from "@/components/groups/group-icon";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -48,6 +49,8 @@ export default async function DashboardPage() {
           <Avatar src={profile.avatar_url} name={profile.display_name} size={44} />
         </Link>
       </div>
+
+      {competition && <WorldCupHero competitionName={competition.name} matches={allMatches} />}
 
       <GettingStarted
         hasGroup={groups.length > 0}
