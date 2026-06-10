@@ -27,15 +27,15 @@ with c as (select id from public.competitions where slug = 'world-cup-2026'),
 t as (select code, id from public.teams)
 insert into public.matches
   (competition_id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score, stage)
-select c.id, h.id, a.id, k.kickoff, k.status, k.hs, k.as_, k.stage
+select c.id, h.id, a.id, k.kickoff, k.status::match_status, k.hs, k.as_, k.stage
 from c,
   (values
     ('MEX','CRO', timestamptz '2026-06-09 19:00+00', 'finished', 2, 1, 'Grupo A'),
     ('ARG','CAN', timestamptz '2026-06-09 22:00+00', 'finished', 3, 0, 'Grupo B'),
-    ('ESP','FRA', timestamptz '2026-06-11 18:00+00', 'scheduled', null, null, 'Grupo C'),
-    ('BRA','ENG', timestamptz '2026-06-11 21:00+00', 'scheduled', null, null, 'Grupo D'),
-    ('GER','POR', timestamptz '2026-06-12 18:00+00', 'scheduled', null, null, 'Grupo E'),
-    ('NED','USA', timestamptz '2026-06-12 21:00+00', 'scheduled', null, null, 'Grupo F')
+    ('ESP','FRA', timestamptz '2026-06-11 18:00+00', 'scheduled', null::int, null::int, 'Grupo C'),
+    ('BRA','ENG', timestamptz '2026-06-11 21:00+00', 'scheduled', null::int, null::int, 'Grupo D'),
+    ('GER','POR', timestamptz '2026-06-12 18:00+00', 'scheduled', null::int, null::int, 'Grupo E'),
+    ('NED','USA', timestamptz '2026-06-12 21:00+00', 'scheduled', null::int, null::int, 'Grupo F')
   ) as k(home, away, kickoff, status, hs, as_, stage)
 join t h on h.code = k.home
 join t a on a.code = k.away;
