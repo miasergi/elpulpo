@@ -45,16 +45,22 @@ async function main() {
   if (e1) throw e1;
   console.log("✓ Competición:", comp.id);
 
-  // Teams
-  await db.from("teams").upsert(
-    TEAMS.map(([name, code]) => ({ name, short_name: name, code })),
-    { onConflict: "code" }
-  );
+  // Clean up any earlier bad matches inserted without teams.
+  await db.from("matches").delete().eq("competition_id", comp.id).is("home_team_id", null);
+
+  // Teams — insert only the ones missing (teams.code has no unique constraint).
+  const { data: existingTeams } = await db.from("teams").select("id, code").in("code", TEAMS.map((t) => t[1]));
+  const have = new Set((existingTeams ?? []).map((t) => t.code));
+  const toInsert = TEAMS.filter(([, code]) => !have.has(code)).map(([name, code]) => ({ name, short_name: name, code }));
+  if (toInsert.length) {
+    const { error: te } = await db.from("teams").insert(toInsert);
+    if (te) throw te;
+  }
   const { data: teams } = await db.from("teams").select("id, code").in("code", TEAMS.map((t) => t[1]));
   const byCode = Object.fromEntries(teams.map((t) => [t.code, t.id]));
   console.log("✓ Equipos:", teams.length);
 
-  // Matches (skip if a match with same teams+kickoff already exists)
+  // Matches (skip if a match with same teams already exists)
   for (const [h, a, kickoff, status, hs, as_, stage] of FIXTURES) {
     const { data: existing } = await db
       .from("matches")

@@ -16,6 +16,9 @@ export async function GET(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (!process.env.API_FOOTBALL_KEY) {
+    return NextResponse.json({ ok: true, skipped: "API_FOOTBALL_KEY no configurada" });
+  }
   try {
     const result = await syncWorldCup();
     return NextResponse.json({ ok: true, ...result });

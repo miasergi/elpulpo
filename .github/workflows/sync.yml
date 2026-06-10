@@ -1,0 +1,20 @@
+name: Sincronizar resultados
+
+# Llama al endpoint de sync de la app cada ~10 min (días de partido).
+# El plan gratuito de Vercel solo permite cron diario, así que GitHub Actions
+# se encarga de la frecuencia. Solo hace algo si API_FOOTBALL_KEY está configurada en Vercel.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync
+        run: |
+          curl -fsS -X GET "https://elpulpo.vercel.app/api/sync" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            && echo "" && echo "Sync OK"
