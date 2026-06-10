@@ -93,7 +93,7 @@ export function GroupChat({
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">
         {messages.length === 0 && (
           <p className="mt-10 text-center text-sm text-muted-foreground">
-            Sé el primero en escribir. ¡Pica a tus amigos! 🐙
+            Sé el primero en escribir. ¡Pica a tus amigos!
           </p>
         )}
         {messages.map((m) => {

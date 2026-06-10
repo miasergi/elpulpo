@@ -87,9 +87,9 @@ function isoFrom(ev: SdbEvent): string {
 
 /** Fetches WC2026 fixtures and assigns group labels (Grupo A..L) by clustering. */
 export async function fetchWorldCupSportsDB() {
-  // Group stage matchdays 1-3; rounds 4+ would be knockouts (empty pre-tournament).
+  // Group stage matchdays 1-3; rounds 4+ are knockouts (empty until the groups end).
   const groupRounds = [1, 2, 3];
-  const koRounds = [4, 5, 6, 7];
+  const koRounds = [4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   const groupEventsArr: SdbEvent[][] = [];
   for (const r of groupRounds) {
@@ -134,11 +134,32 @@ export async function fetchWorldCupSportsDB() {
     venue: ev.strVenue,
   });
 
-  const KO_NAMES: Record<number, string> = {
-    4: "Dieciseisavos",
-    5: "Octavos de final",
-    6: "Cuartos de final",
-    7: "Semifinales",
+  // Label knockout rounds by how many matches they contain (robust to whatever
+  // round numbers the source uses). 1-match rounds: latest by date = Final, the
+  // earlier single = Tercer puesto.
+  const koByRound = new Map<number, SdbEvent[]>();
+  for (const ev of koEvents) {
+    const r = Number(ev.intRound);
+    if (!koByRound.has(r)) koByRound.set(r, []);
+    koByRound.get(r)!.push(ev);
+  }
+  const singleRounds = [...koByRound.entries()]
+    .filter(([, evs]) => evs.length === 1)
+    .sort((a, b) => new Date(isoFrom(a[1][0])).getTime() - new Date(isoFrom(b[1][0])).getTime())
+    .map(([r]) => r);
+  const finalRound = singleRounds.at(-1);
+
+  const koStage = (ev: SdbEvent): string => {
+    const r = Number(ev.intRound);
+    const count = koByRound.get(r)?.length ?? 0;
+    switch (count) {
+      case 16: return "Dieciseisavos de final";
+      case 8: return "Octavos de final";
+      case 4: return "Cuartos de final";
+      case 2: return "Semifinales";
+      case 1: return r === finalRound ? "Final" : "Tercer puesto";
+      default: return "Eliminatorias";
+    }
   };
 
   const fixtures = [
@@ -151,7 +172,7 @@ export async function fetchWorldCupSportsDB() {
     })),
     ...koEvents.map((ev) => ({
       fixture: norm(ev, ""),
-      stage: KO_NAMES[Number(ev.intRound)] ?? "Eliminatorias",
+      stage: koStage(ev),
     })),
   ];
 

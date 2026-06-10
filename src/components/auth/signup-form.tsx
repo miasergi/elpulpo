@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { MailCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,7 @@ export function SignupForm() {
   if (sent) {
     return (
       <div className="space-y-4 text-center">
-        <div className="text-5xl">📬</div>
+        <MailCheck className="mx-auto h-14 w-14 text-pulpo-300" />
         <h1 className="text-2xl font-bold">Revisa tu correo</h1>
         <p className="text-sm text-muted">
           Te hemos enviado un enlace para confirmar tu cuenta. Ábrelo y vuelve para empezar a jugar.

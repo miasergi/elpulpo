@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { toast } from "sonner";
+import { KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ function Inner() {
       toast.error("Código no válido. Revísalo e inténtalo de nuevo.");
       return;
     }
-    toast.success("¡Te has unido al grupo! 🎉");
+    toast.success("¡Te has unido al grupo!");
     router.push(`/app/groups/${data}`);
     router.refresh();
   }
@@ -34,7 +35,7 @@ function Inner() {
   return (
     <form onSubmit={onSubmit} className="space-y-5 pt-4">
       <div className="rounded-lg border border-border bg-surface/50 p-5 text-center">
-        <div className="text-4xl">🔑</div>
+        <KeyRound className="mx-auto h-10 w-10 text-pulpo-300" />
         <p className="mt-3 text-sm text-muted">
           Pide a tu amigo el código de invitación del grupo y pégalo aquí.
         </p>

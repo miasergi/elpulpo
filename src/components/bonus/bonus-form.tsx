@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Lock, Trophy } from "lucide-react";
+import { Lock, Trophy, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -111,7 +111,7 @@ function MarketCard({ market, teams, userId }: { market: Market; teams: Team[]; 
             <Lock className="h-3 w-3" /> Cerrado
           </span>
         ) : saved ? (
-          <span className="text-pitch-400">Guardado ✓</span>
+          <span className="flex items-center gap-1 text-pitch-400"><Check className="h-3 w-3" /> Guardado</span>
         ) : (
           <span />
         )}

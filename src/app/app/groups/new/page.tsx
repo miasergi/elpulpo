@@ -14,7 +14,7 @@ export default async function NewGroupPage() {
       <div className="px-5">
         <BackHeader title="Crear grupo" />
         <p className="mt-10 text-center text-sm text-muted">
-          No hay ninguna competición activa todavía. Vuelve cuando esté cargado el Mundial 2026. 🐙
+          No hay ninguna competición activa todavía. Vuelve cuando esté cargado el Mundial 2026.
         </p>
       </div>
     );

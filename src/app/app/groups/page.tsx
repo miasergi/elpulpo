@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Plus, LogIn, ChevronRight } from "lucide-react";
+import { Plus, LogIn, ChevronRight, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getMyGroups } from "@/lib/queries";
 import { getMyStanding } from "@/lib/groups";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { GroupIcon } from "@/components/groups/group-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function GroupsPage() {
 
       {groups.length === 0 ? (
         <div className="mt-12 text-center text-sm text-muted">
-          <div className="text-5xl">🐙</div>
+          <Users className="mx-auto h-12 w-12 text-muted-foreground" />
           <p className="mt-3">Todavía no estás en ningún grupo.<br />Crea uno o únete con un código.</p>
         </div>
       ) : (
@@ -42,10 +43,10 @@ export default async function GroupsPage() {
               className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3.5"
             >
               <div
-                className="flex h-12 w-12 items-center justify-center rounded-lg text-2xl"
+                className="flex h-12 w-12 items-center justify-center rounded-lg"
                 style={{ backgroundColor: `${group.color}22` }}
               >
-                {group.icon}
+                <GroupIcon name={group.icon} size={24} color={group.color} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{group.name}</p>

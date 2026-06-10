@@ -1,8 +1,9 @@
+import { Medal, BarChart3 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { StandingRow } from "@/lib/groups";
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+const MEDAL_COLOR = ["text-[#f5c542]", "text-[#cbd5e1]", "text-[#cd7f32]"];
 
 export function StandingsList({
   rows,
@@ -14,7 +15,7 @@ export function StandingsList({
   if (rows.length === 0) {
     return (
       <div className="mt-10 text-center text-sm text-muted">
-        <div className="text-4xl">📊</div>
+        <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground" />
         <p className="mt-3">Aún no hay puntos. ¡Empieza a predecir partidos!</p>
       </div>
     );
@@ -32,8 +33,12 @@ export function StandingsList({
               isMe ? "border-primary/60 bg-primary/10" : "border-border bg-surface/50"
             )}
           >
-            <div className="w-7 shrink-0 text-center text-lg font-bold tabular-nums">
-              {r.rank <= 3 ? MEDALS[r.rank - 1] : <span className="text-muted">{r.rank}</span>}
+            <div className="flex w-7 shrink-0 items-center justify-center text-lg font-bold tabular-nums">
+              {r.rank <= 3 ? (
+                <Medal className={cn("h-5 w-5", MEDAL_COLOR[r.rank - 1])} />
+              ) : (
+                <span className="text-muted">{r.rank}</span>
+              )}
             </div>
             <Avatar src={r.avatar_url} name={r.display_name} size={36} />
             <div className="min-w-0 flex-1">

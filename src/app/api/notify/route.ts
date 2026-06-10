@@ -63,8 +63,8 @@ export async function GET(request: Request) {
     const targets = subscribers.filter((u) => !done.has(u));
     if (targets.length === 0) continue;
     const { sent } = await sendToUsers(targets, {
-      title: "⚽ ¡Empieza pronto!",
-      body: `${teamName(m.home)} vs ${teamName(m.away)} arranca en una hora. ¡Mete tu predicción! 🐙`,
+      title: "¡Empieza pronto!",
+      body: `${teamName(m.home)} vs ${teamName(m.away)} arranca en una hora. ¡Mete tu predicción!`,
       url: `/app/matches/${m.id}`,
     });
     reminders += sent;
@@ -89,10 +89,10 @@ export async function GET(request: Request) {
       const pts = points(p.home_score, p.away_score, m.home_score!, m.away_score!);
       const body =
         pts > 0
-          ? `${teamName(m.home)} ${m.home_score}-${m.away_score} ${teamName(m.away)} · ¡Sumaste ${pts} pts! 🎉`
-          : `${teamName(m.home)} ${m.home_score}-${m.away_score} ${teamName(m.away)} · Esta vez no puntuaste 😅`;
+          ? `${teamName(m.home)} ${m.home_score}-${m.away_score} ${teamName(m.away)} · ¡Sumaste ${pts} pts!`
+          : `${teamName(m.home)} ${m.home_score}-${m.away_score} ${teamName(m.away)} · Esta vez no puntuaste`;
       const { sent } = await sendToUsers([p.user_id], {
-        title: "📣 Final del partido",
+        title: "Final del partido",
         body,
         url: `/app/matches/${m.id}`,
       });

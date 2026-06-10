@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PushToggle } from "./push-toggle";
+import { SoundToggle } from "./sound-toggle";
 import { StatsGrid } from "./stats-grid";
 import { AchievementsGrid } from "./achievements-grid";
 import { computeAchievements } from "@/lib/achievements";
@@ -89,13 +90,15 @@ export function ProfileForm({
         <PushToggle userId={profile.id} />
       </div>
 
+      <SoundToggle />
+
       <form action="/auth/signout" method="post">
         <Button type="submit" variant="outline" size="full">
           <LogOut className="h-4 w-4" /> Cerrar sesión
         </Button>
       </form>
 
-      <p className="text-center text-xs text-muted-foreground">El Pulpo · v0.1 🐙</p>
+      <p className="text-center text-xs text-muted-foreground">El Pulpo · v0.1</p>
     </div>
   );
 }

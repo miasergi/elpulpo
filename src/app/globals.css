@@ -116,11 +116,13 @@ html {
 
 body {
   position: relative;
+  /* Fixed to the viewport so the glows never create a visible seam while scrolling. */
   background:
-    radial-gradient(1100px 560px at 50% -8%, rgba(251, 126, 60, 0.18), transparent 58%),
-    radial-gradient(900px 520px at 50% 118%, rgba(20, 184, 166, 0.14), transparent 55%),
-    radial-gradient(120% 110% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55)),
+    radial-gradient(1100px 560px at 50% -8%, rgba(251, 126, 60, 0.16), transparent 60%),
+    radial-gradient(900px 520px at 50% 110%, rgba(20, 184, 166, 0.12), transparent 60%),
     var(--background);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   min-height: 100dvh;

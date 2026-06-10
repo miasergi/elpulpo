@@ -37,7 +37,7 @@ export function LoginForm() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Bienvenido de vuelta 🐙</h1>
+        <h1 className="text-2xl font-bold">Bienvenido de vuelta</h1>
         <p className="mt-1 text-sm text-muted">Entra para ver tus grupos y predicciones.</p>
       </div>
 

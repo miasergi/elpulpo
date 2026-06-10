@@ -12,7 +12,7 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "El Pulpo · Predicciones de fútbol con amigos",
   description:
-    "Crea grupos con tus amigos y predice los resultados del Mundial 2026. El que más acierte, gana. 🐙",
+    "Crea grupos con tus amigos y predice los resultados del Mundial 2026. El que más acierte, gana.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "El Pulpo" },
   openGraph: {

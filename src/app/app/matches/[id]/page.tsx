@@ -6,6 +6,7 @@ import { PredictionCard } from "@/components/match/prediction-card";
 import { PredictionsList } from "@/components/match/predictions-list";
 import { PredictionDistribution } from "@/components/match/prediction-distribution";
 import { TeamFlag } from "@/components/match/team-flag";
+import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { kickoffLabel, isLocked, statusBadge } from "@/lib/format";
 
@@ -63,8 +64,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               initialAway={myPred?.away ?? null}
               userId={profile.id}
             />
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Las predicciones de los demás se revelan al empezar el partido. 🔒
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" /> Las predicciones de los demás se revelan al empezar el partido.
             </p>
           </>
         ) : (

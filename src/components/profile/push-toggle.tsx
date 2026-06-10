@@ -56,7 +56,7 @@ export function PushToggle({ userId }: { userId: string }) {
         { onConflict: "endpoint" }
       );
       setEnabled(true);
-      toast.success("Notificaciones activadas 🔔");
+      toast.success("Notificaciones activadas");
     } catch {
       toast.error("No se pudieron activar");
     } finally {

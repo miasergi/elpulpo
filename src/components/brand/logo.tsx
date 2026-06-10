@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** The real El Pulpo badge (Paul the octopus). */
+/** The El Pulpo badge logo. */
 export function PulpoMark({ className, size = 40 }: { className?: string; size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element

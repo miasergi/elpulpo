@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Target, Scale, CircleCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateInviteCode, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GroupIcon, GROUP_ICONS } from "./group-icon";
 
-const ICONS = ["🐙", "⚽", "🏆", "🔥", "🦁", "🐉", "👑", "🎯", "💪", "🚀"];
-const COLORS = ["#7c3aed", "#22c55e", "#ef4444", "#f59e0b", "#38bdf8", "#ec4899"];
+const COLORS = ["#fb7e3c", "#14b8a6", "#ff5c9d", "#22d3ee", "#f59e0b", "#a78bfa"];
 
 export function CreateGroupForm({
   competitionId,
@@ -22,8 +22,8 @@ export function CreateGroupForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [icon, setIcon] = useState("🐙");
-  const [color, setColor] = useState("#7c3aed");
+  const [icon, setIcon] = useState("goal");
+  const [color, setColor] = useState("#fb7e3c");
   const [showScoring, setShowScoring] = useState(false);
   const [scoring, setScoring] = useState({ exact: 5, diff: 3, result: 2 });
 
@@ -50,7 +50,7 @@ export function CreateGroupForm({
       toast.error("No se pudo crear el grupo");
       return;
     }
-    toast.success("¡Grupo creado! 🐙");
+    toast.success("¡Grupo creado!");
     router.push(`/app/groups/${data}`);
     router.refresh();
   }
@@ -60,10 +60,10 @@ export function CreateGroupForm({
       {/* Preview */}
       <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-4">
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-xl text-3xl"
+          className="flex h-14 w-14 items-center justify-center rounded-xl"
           style={{ backgroundColor: `${color}22` }}
         >
-          {icon}
+          <GroupIcon name={icon} size={28} color={color} />
         </div>
         <div>
           <p className="text-xs text-muted">Competición</p>
@@ -78,23 +78,23 @@ export function CreateGroupForm({
 
       <div>
         <Label htmlFor="description">Descripción (opcional)</Label>
-        <Input id="description" name="description" maxLength={120} placeholder="El que pierde paga las cervezas 🍺" />
+        <Input id="description" name="description" maxLength={120} placeholder="El que pierde paga las cervezas" />
       </div>
 
       <div>
         <Label>Icono</Label>
         <div className="flex flex-wrap gap-2">
-          {ICONS.map((i) => (
+          {GROUP_ICONS.map(({ key, Icon }) => (
             <button
-              key={i}
+              key={key}
               type="button"
-              onClick={() => setIcon(i)}
+              onClick={() => setIcon(key)}
               className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-lg border text-xl transition-colors",
-                icon === i ? "border-primary bg-primary/15" : "border-border bg-surface-2"
+                "flex h-11 w-11 items-center justify-center rounded-lg border transition-colors",
+                icon === key ? "border-primary bg-primary/15 text-primary" : "border-border bg-surface-2 text-muted"
               )}
             >
-              {i}
+              <Icon size={20} />
             </button>
           ))}
         </div>
@@ -132,12 +132,14 @@ export function CreateGroupForm({
         {showScoring && (
           <div className="space-y-3 border-t border-border p-4">
             {([
-              ["exact", "🎯 Marcador exacto"],
-              ["diff", "📊 Diferencia de goles"],
-              ["result", "✅ Ganador (1X2)"],
-            ] as const).map(([key, label]) => (
+              ["exact", "Marcador exacto", Target],
+              ["diff", "Diferencia de goles", Scale],
+              ["result", "Ganador (1X2)", CircleCheck],
+            ] as const).map(([key, label, Icon]) => (
               <div key={key} className="flex items-center justify-between">
-                <span className="text-sm">{label}</span>
+                <span className="flex items-center gap-2 text-sm">
+                  <Icon className="h-4 w-4 text-pulpo-300" /> {label}
+                </span>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"

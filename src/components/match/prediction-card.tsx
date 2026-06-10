@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Check, Lock, Users } from "lucide-react";
+import { Minus, Plus, Check, Lock, Users, Target } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { playTick } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { TeamFlag, type TeamLite } from "./team-flag";
@@ -69,6 +70,7 @@ export function PredictionCard({
         toast.error("No se pudo guardar la predicción");
       } else {
         setState("saved");
+        playTick("success");
       }
     }, 700);
     return () => {
@@ -130,7 +132,11 @@ export function PredictionCard({
             <span className="font-semibold text-foreground">
               {match.home_score} - {match.away_score}
             </span>
-            {hitExact && <span className="ml-2 text-pitch-400">¡Exacto! 🎯</span>}
+            {hitExact && (
+              <span className="ml-2 inline-flex items-center gap-1 text-pitch-400">
+                <Target className="h-3.5 w-3.5" /> ¡Exacto!
+              </span>
+            )}
           </span>
         ) : locked && !predicted ? (
           <span className="text-muted-foreground">No predijiste este partido</span>

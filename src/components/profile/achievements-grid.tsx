@@ -21,7 +21,7 @@ export function AchievementsGrid({ achievements }: { achievements: Achievement[]
               a.unlocked ? "border-primary/40 bg-primary/10" : "border-border bg-surface/40"
             )}
           >
-            <span className={cn("text-2xl", !a.unlocked && "opacity-30 grayscale")}>{a.emoji}</span>
+            <a.Icon className={cn("h-7 w-7", a.unlocked ? "text-primary" : "text-muted-foreground opacity-40")} />
             <p className={cn("mt-1 text-[11px] font-semibold leading-tight", !a.unlocked && "text-muted-foreground")}>
               {a.title}
             </p>

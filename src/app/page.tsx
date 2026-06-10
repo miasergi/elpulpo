@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy, Users, Zap, Target, MessageCircle, Bell } from "lucide-react";
+import { Trophy, Users, Zap, Target, MessageCircle, Bell, Scale, CircleCheck } from "lucide-react";
 import { Wordmark, PulpoMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +32,7 @@ export default function LandingPage() {
           Predice el <span className="text-brand-gradient">Mundial 2026</span> con tus amigos
         </h1>
         <p className="mt-4 text-balance text-muted">
-          Crea tu grupo, mete tus pronósticos y descubre quién es el verdadero oráculo. 🐙
+          Crea tu grupo, mete tus pronósticos y descubre quién es el verdadero oráculo.
         </p>
 
         <div className="mt-8 flex w-full flex-col gap-3">
@@ -53,15 +53,15 @@ export default function LandingPage() {
         <h2 className="text-sm font-semibold text-muted">CÓMO SE PUNTÚA</h2>
         <ul className="mt-3 space-y-2.5 text-sm">
           <li className="flex items-center justify-between">
-            <span>🎯 Marcador exacto</span>
+            <span className="flex items-center gap-2"><Target className="h-4 w-4 text-pulpo-300" /> Marcador exacto</span>
             <span className="font-bold text-pitch-400">+5 pts</span>
           </li>
           <li className="flex items-center justify-between">
-            <span>📊 Acertar la diferencia de goles</span>
+            <span className="flex items-center gap-2"><Scale className="h-4 w-4 text-pulpo-300" /> Acertar la diferencia de goles</span>
             <span className="font-bold text-pitch-400">+3 pts</span>
           </li>
           <li className="flex items-center justify-between">
-            <span>✅ Acertar el ganador (1·X·2)</span>
+            <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-pulpo-300" /> Acertar el ganador (1·X·2)</span>
             <span className="font-bold text-pitch-400">+2 pts</span>
           </li>
         </ul>
@@ -89,7 +89,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="mt-12 text-center text-xs text-muted-foreground">
-        El Pulpo · En homenaje a Paul, el pulpo que lo predijo todo en 2010.
+        El Pulpo · Predicciones de fútbol con amigos
       </footer>
     </div>
   );

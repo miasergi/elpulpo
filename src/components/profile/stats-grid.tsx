@@ -16,7 +16,7 @@ export function StatsGrid({ stats }: { stats: PlayerStats }) {
       <p className="mb-2 text-sm font-medium text-muted">Tus estadísticas</p>
       {stats.played === 0 ? (
         <div className="rounded-lg border border-border bg-surface/50 p-5 text-center text-sm text-muted">
-          Aún no hay partidos terminados que hayas predicho. ¡Empieza a jugar! 🐙
+          Aún no hay partidos terminados que hayas predicho. ¡Empieza a jugar!
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
@@ -30,8 +30,8 @@ export function StatsGrid({ stats }: { stats: PlayerStats }) {
         </div>
       )}
       {stats.currentStreak >= 2 && (
-        <p className="mt-2 text-center text-xs text-pitch-400">
-          🔥 ¡Racha de {stats.currentStreak} aciertos seguidos!
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-pitch-400">
+          <Flame className="h-3.5 w-3.5" /> ¡Racha de {stats.currentStreak} aciertos seguidos!
         </p>
       )}
     </div>

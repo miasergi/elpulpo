@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper, Target, Scale, CircleCheck, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { StandingsList } from "./standings-list";
 import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
 import { ActivityFeed } from "./activity-feed";
+import { GroupIcon } from "./group-icon";
 import type { StandingRow, ActivityItem } from "@/lib/groups";
 
 type Tab = "ranking" | "activity" | "chat" | "info";
@@ -80,10 +81,10 @@ export function GroupDetail({
       {/* Group header */}
       <div className="flex items-center gap-3 pb-4">
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-xl text-3xl"
+          className="flex h-14 w-14 items-center justify-center rounded-xl"
           style={{ backgroundColor: `${group.color}22` }}
         >
-          {group.icon}
+          <GroupIcon name={group.icon} size={28} color={group.color} />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-bold">{group.name}</h1>
@@ -129,9 +130,9 @@ export function GroupDetail({
             <div className="rounded-lg border border-border bg-surface/50 p-4">
               <p className="mb-2 text-sm font-medium text-muted">Sistema de puntos</p>
               <div className="space-y-1.5 text-sm">
-                <Row label="🎯 Marcador exacto" value={group.pts_exact} />
-                <Row label="📊 Diferencia de goles" value={group.pts_goal_diff} />
-                <Row label="✅ Ganador (1X2)" value={group.pts_result} />
+                <Row Icon={Target} label="Marcador exacto" value={group.pts_exact} />
+                <Row Icon={Scale} label="Diferencia de goles" value={group.pts_goal_diff} />
+                <Row Icon={CircleCheck} label="Ganador (1X2)" value={group.pts_result} />
               </div>
             </div>
 
@@ -171,10 +172,12 @@ export function GroupDetail({
   );
 }
 
-function Row({ label, value }: { label: string; value: number }) {
+function Row({ Icon, label, value }: { Icon: LucideIcon; label: string; value: number }) {
   return (
     <div className="flex items-center justify-between">
-      <span>{label}</span>
+      <span className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-pulpo-300" /> {label}
+      </span>
       <span className="font-bold text-pitch-400">+{value} pts</span>
     </div>
   );

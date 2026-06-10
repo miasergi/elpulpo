@@ -82,13 +82,14 @@ export interface KnockoutRound {
   matches: MatchRow[];
 }
 
-// Canonical knockout ordering + display labels (matches API-Football round names loosely).
+// Canonical knockout ordering + display labels. Order matters: "final" is last
+// because every round name ends in "de final".
 const KO_ORDER: [RegExp, string][] = [
-  [/round of 32|treintaidos|32/i, "16avos de final"],
-  [/round of 16|octavos|16/i, "Octavos de final"],
-  [/quarter|cuartos/i, "Cuartos de final"],
+  [/dieciseisavos|round of 32|treintaidos/i, "Dieciseisavos de final"],
+  [/octavos|round of 16/i, "Octavos de final"],
+  [/cuartos|quarter/i, "Cuartos de final"],
   [/semi/i, "Semifinales"],
-  [/3rd|third|tercer/i, "Tercer puesto"],
+  [/tercer|3rd|third/i, "Tercer puesto"],
   [/final/i, "Final"],
 ];
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy, ChevronRight } from "lucide-react";
+import { Trophy, ChevronRight, CalendarX2 } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getActiveCompetition, getMatches, getUserPredictions } from "@/lib/queries";
 import { PredictionCard } from "@/components/match/prediction-card";
@@ -93,7 +93,7 @@ export default async function MatchesPage() {
 function EmptyState() {
   return (
     <div className="mt-16 flex flex-col items-center text-center text-muted">
-      <div className="text-5xl">📅</div>
+      <CalendarX2 className="h-12 w-12 text-muted-foreground" />
       <p className="mt-4 text-sm">
         Aún no hay partidos cargados.
         <br />

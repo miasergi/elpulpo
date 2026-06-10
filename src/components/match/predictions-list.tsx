@@ -1,12 +1,13 @@
+import { Target, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { MatchPrediction } from "@/lib/queries";
 
 function outcome(ph: number, pa: number, ah: number, aa: number) {
-  if (ph === ah && pa === aa) return { label: "🎯 Exacto", variant: "accent" as const };
-  if (Math.sign(ph - pa) === Math.sign(ah - aa)) return { label: "✅ Acertó", variant: "success" as const };
-  return { label: "❌ Falló", variant: "danger" as const };
+  if (ph === ah && pa === aa) return { Icon: Target, label: "Exacto", variant: "accent" as const };
+  if (Math.sign(ph - pa) === Math.sign(ah - aa)) return { Icon: Check, label: "Acertó", variant: "success" as const };
+  return { Icon: X, label: "Falló", variant: "danger" as const };
 }
 
 export function PredictionsList({
@@ -50,7 +51,11 @@ export function PredictionsList({
             <span className="flex-1 truncate text-sm font-medium">
               {p.display_name} {isMe && <span className="text-xs text-muted">(tú)</span>}
             </span>
-            {o && <Badge variant={o.variant}>{o.label}</Badge>}
+            {o && (
+              <Badge variant={o.variant}>
+                <o.Icon className="h-3 w-3" /> {o.label}
+              </Badge>
+            )}
             <span className="w-12 text-center text-base font-bold tabular-nums">
               {p.home_score}-{p.away_score}
             </span>

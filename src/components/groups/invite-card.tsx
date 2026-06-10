@@ -19,7 +19,7 @@ export function InviteCard({ code, groupName }: { code: string; groupName: strin
   }
 
   async function share() {
-    const text = `¡Únete a "${groupName}" en El Pulpo! 🐙 Usa el código ${code} o entra aquí:`;
+    const text = `¡Únete a "${groupName}" en El Pulpo! Usa el código ${code} o entra aquí:`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "El Pulpo", text, url: link });

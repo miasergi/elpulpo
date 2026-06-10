@@ -16,7 +16,7 @@ export default async function TournamentPage() {
     return (
       <div className="px-5">
         <PageHeader title="El Mundial" />
-        <p className="mt-12 text-center text-sm text-muted">Aún no hay competición activa. 🐙</p>
+        <p className="mt-12 text-center text-sm text-muted">Aún no hay competición activa.</p>
       </div>
     );
   }

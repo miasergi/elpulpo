@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function TournamentTabs({
@@ -53,7 +54,7 @@ export function TournamentTabs({
 function Empty({ text }: { text: string }) {
   return (
     <div className="mt-12 text-center text-sm text-muted">
-      <div className="text-4xl">🏆</div>
+      <Trophy className="mx-auto h-10 w-10 text-muted-foreground" />
       <p className="mt-3">{text}</p>
     </div>
   );

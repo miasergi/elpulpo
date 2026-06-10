@@ -14,7 +14,7 @@ export default async function BonusPage() {
     return (
       <div className="px-5">
         <BackHeader title="Bonus" />
-        <p className="mt-10 text-center text-sm text-muted">Aún no hay apuestas bonus disponibles. 🐙</p>
+        <p className="mt-10 text-center text-sm text-muted">Aún no hay apuestas bonus disponibles.</p>
       </div>
     );
   }
@@ -31,7 +31,7 @@ export default async function BonusPage() {
         Acierta estas preguntas para sumar puntos extra. Se cierran al empezar el torneo.
       </p>
       {markets.length === 0 ? (
-        <p className="mt-10 text-center text-sm text-muted">Todavía no hay preguntas bonus. 🐙</p>
+        <p className="mt-10 text-center text-sm text-muted">Todavía no hay preguntas bonus.</p>
       ) : (
         <BonusForm
           markets={markets.map((m) => ({
