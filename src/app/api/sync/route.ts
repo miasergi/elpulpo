@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncWorldCup } from "@/lib/sync";
+import { syncWorldCupSportsDB } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,11 +16,8 @@ export async function GET(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  if (!process.env.API_FOOTBALL_KEY) {
-    return NextResponse.json({ ok: true, skipped: "API_FOOTBALL_KEY no configurada" });
-  }
   try {
-    const result = await syncWorldCup();
+    const result = await syncWorldCupSportsDB();
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
