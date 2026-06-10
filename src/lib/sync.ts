@@ -7,6 +7,39 @@ import {
 import { fetchWorldCupSportsDB } from "@/lib/sports-db";
 import { translateTeam } from "@/lib/teams-es";
 
+// Default tournament-wide bonus questions. Inserted once (existing rows are
+// never touched, so admin edits/resolutions survive re-syncs).
+const DEFAULT_BONUS_MARKETS: [key: string, label: string, kind: "team" | "text", points: number][] = [
+  ["champion", "¿Quién ganará el Mundial?", "team", 15],
+  ["finalist", "¿Quién será subcampeón?", "team", 8],
+  ["top_scorer", "Máximo goleador (Bota de Oro)", "text", 10],
+  ["best_player", "Mejor jugador (Balón de Oro)", "text", 8],
+  ["best_keeper", "Mejor portero (Guante de Oro)", "text", 8],
+  ["host_best", "¿Qué anfitrión llegará más lejos?", "team", 5],
+  ...Array.from({ length: 12 }, (_, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return [`group_winner_${letter}`, `Ganador del Grupo ${letter}`, "team", 3] as [string, string, "team", number];
+  }),
+];
+
+async function ensureBonusMarkets(
+  supabase: ReturnType<typeof createServiceClient>,
+  competitionId: string,
+  closesAt: string | null
+) {
+  await supabase.from("bonus_markets").upsert(
+    DEFAULT_BONUS_MARKETS.map(([key, label, kind, points]) => ({
+      competition_id: competitionId,
+      key,
+      label,
+      kind,
+      points,
+      closes_at: closesAt,
+    })),
+    { onConflict: "competition_id,key", ignoreDuplicates: true }
+  );
+}
+
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
  * upserts teams/matches by external_id, and removes leftover demo rows.
@@ -103,6 +136,11 @@ export async function syncWorldCupSportsDB() {
   // Remove leftover demo data (rows without an external_id).
   await supabase.from("matches").delete().eq("competition_id", competition.id).is("external_id", null);
   await supabase.from("teams").delete().is("external_id", null);
+
+  // Make sure the tournament-wide bonus questions exist (close at kick-off
+  // of the opening match).
+  const firstKickoff = fixtures.map((f) => f.kickoff_at).sort()[0] ?? null;
+  await ensureBonusMarkets(supabase, competition.id, firstKickoff);
 
   return { source: "thesportsdb", competitionId: competition.id, teams: teamRows.length, matches: matchRows.length };
 }

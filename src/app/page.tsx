@@ -7,7 +7,7 @@ const features = [
   { icon: Target, title: "Predice cada partido", desc: "Marcador exacto, ganador o empate. Cuanto más afines, más puntos." },
   { icon: Users, title: "Grupos con tus amigos", desc: "Crea una porra privada con un código y reta a quien quieras." },
   { icon: Zap, title: "Ranking en vivo", desc: "La clasificación se actualiza en tiempo real mientras ruedan los partidos." },
-  { icon: Trophy, title: "Bonus del torneo", desc: "Acierta el campeón y el máximo goleador para puntos extra." },
+  { icon: Trophy, title: "Bonus del torneo", desc: "Campeón, goleador, ganadores de grupo… muchos puntos extra." },
   { icon: MessageCircle, title: "Chat de grupo", desc: "Pica a tus amigos y celebra los aciertos sin salir de la app." },
   { icon: Bell, title: "Avisos a tiempo", desc: "Te recordamos cuando un partido está a punto de cerrar." },
 ];
@@ -37,7 +37,7 @@ export default function LandingPage() {
 
         <div className="mt-8 flex w-full flex-col gap-3">
           <Link href="/signup" className="w-full">
-            <Button size="full" variant="primary">Crear mi grupo gratis</Button>
+            <Button size="full" variant="primary">Crear cuenta gratis</Button>
           </Link>
           <Link href="/login" className="w-full">
             <Button size="full" variant="secondary">Ya tengo cuenta</Button>
@@ -46,6 +46,29 @@ export default function LandingPage() {
         <p className="mt-3 text-xs text-muted-foreground">
           Gratis · Sin anuncios · Instálalo en tu móvil
         </p>
+      </section>
+
+      {/* How it works */}
+      <section className="mt-12">
+        <h2 className="text-center text-2xl font-bold">¿Cómo funciona?</h2>
+        <ol className="mt-5 space-y-4">
+          {[
+            ["Crea tu cuenta gratis", "Con tu email o con un toque usando Google."],
+            ["Monta tu grupo", "Crea una porra y comparte el código con tus amigos, o únete a la suya."],
+            ["Predice antes de cada partido", "Marcador exacto, campeón, goleador… todo suma puntos."],
+            ["Gana el ranking", "La clasificación se actualiza en vivo. ¿Quién es el oráculo?"],
+          ].map(([title, desc], i) => (
+            <li key={title} className="flex items-start gap-3 rounded-lg border border-border bg-surface/50 p-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
+                {i + 1}
+              </span>
+              <div>
+                <p className="font-semibold">{title}</p>
+                <p className="mt-0.5 text-sm text-muted">{desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* How it scores */}

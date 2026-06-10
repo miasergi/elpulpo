@@ -1,5 +1,5 @@
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getMatches, getUserPredictions } from "@/lib/queries";
+import { getActiveCompetition, getMatches, getMyPredictions } from "@/lib/queries";
 import { BottomNav } from "@/components/app/bottom-nav";
 import { InstallPrompt } from "@/components/app/install-prompt";
 
@@ -7,13 +7,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { profile } = await requireProfile();
 
   // Count upcoming matches the user hasn't predicted (for the nav badge).
+  // All these queries are per-request memoised, so pages reuse them for free.
   let pending = 0;
   const competition = await getActiveCompetition();
   if (competition) {
-    const matches = await getMatches(competition.id);
-    const upcoming = matches.filter((m) => m.status === "scheduled");
-    const preds = await getUserPredictions(profile.id, upcoming.map((m) => m.id));
-    pending = upcoming.filter((m) => !preds.has(m.id)).length;
+    const [matches, preds] = await Promise.all([
+      getMatches(competition.id),
+      getMyPredictions(profile.id),
+    ]);
+    pending = matches.filter((m) => m.status === "scheduled" && !preds.has(m.id)).length;
   }
 
   return (

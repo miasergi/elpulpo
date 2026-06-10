@@ -5,11 +5,11 @@ export function PulpoMark({ className, size = 40 }: { className?: string; size?:
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/pulpo-logo.png"
+      src="/icons/icon-256.png"
       alt="El Pulpo"
       width={size}
       height={size}
-      className={cn("object-cover object-center", className)}
+      className={cn("object-contain", className)}
       style={{ width: size, height: size }}
     />
   );

@@ -1,8 +1,10 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-/** Returns the authenticated user's profile, or redirects to /login. */
-export async function requireProfile() {
+/** Returns the authenticated user's profile, or redirects to /login.
+ *  Per-request memoised so layout + page don't repeat the auth round-trips. */
+export const requireProfile = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -22,4 +24,4 @@ export async function requireProfile() {
   }
 
   return { user, profile, supabase };
-}
+});

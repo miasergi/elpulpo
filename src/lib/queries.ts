@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { MatchWithTeams } from "@/components/match/prediction-card";
 
@@ -5,8 +6,9 @@ const TEAM_SELECT =
   "home_team:teams!matches_home_team_id_fkey(id,name,short_name,code,flag_url)," +
   "away_team:teams!matches_away_team_id_fkey(id,name,short_name,code,flag_url)";
 
-/** The active competition the app is centred on (World Cup 2026 to start). */
-export async function getActiveCompetition() {
+/** The active competition the app is centred on (World Cup 2026 to start).
+ *  Per-request memoised: layout + page share one query. */
+export const getActiveCompetition = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("competitions")
@@ -16,11 +18,11 @@ export async function getActiveCompetition() {
     .limit(1)
     .maybeSingle();
   return data;
-}
+});
 
 export type MatchRow = MatchWithTeams & { competition_id: string };
 
-export async function getMatches(competitionId: string): Promise<MatchRow[]> {
+export const getMatches = cache(async (competitionId: string): Promise<MatchRow[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("matches")
@@ -29,7 +31,7 @@ export async function getMatches(competitionId: string): Promise<MatchRow[]> {
     .order("kickoff_at", { ascending: true });
   // Supabase returns related rows as arrays for some shapes; normalise to single.
   return (data ?? []).map((m) => normaliseMatch(m as unknown as Record<string, unknown>));
-}
+});
 
 export async function getMatchById(id: string): Promise<MatchRow | null> {
   const supabase = await createClient();
@@ -74,22 +76,32 @@ export async function getMatchPredictions(
     .sort((a, b) => (a.user_id === currentUserId ? -1 : b.user_id === currentUserId ? 1 : 0));
 }
 
-export async function getUserPredictions(userId: string, matchIds: string[]) {
-  if (matchIds.length === 0) return new Map<string, { home: number; away: number }>();
+/** All of a user's match predictions, as a map by match id.
+ *  Per-request memoised: the nav badge, dashboard and matches page share it. */
+export const getMyPredictions = cache(async (userId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
     .select("match_id,home_score,away_score")
-    .eq("user_id", userId)
-    .in("match_id", matchIds);
+    .eq("user_id", userId);
   const map = new Map<string, { home: number; away: number }>();
   for (const p of data ?? []) {
     map.set(p.match_id, { home: p.home_score, away: p.away_score });
   }
   return map;
-}
+});
 
-export async function getMyGroups(userId: string) {
+/** How many bonus questions the user has answered (for onboarding). */
+export const getMyBonusCount = cache(async (userId: string) => {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("bonus_predictions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  return count ?? 0;
+});
+
+export const getMyGroups = cache(async (userId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("group_members")
@@ -98,7 +110,7 @@ export async function getMyGroups(userId: string) {
   return (data ?? [])
     .map((r) => ({ role: r.role, ...(Array.isArray(r.group) ? r.group[0] : r.group) }))
     .filter((g) => g && g.id);
-}
+});
 
 function normaliseMatch(m: Record<string, unknown>): MatchRow {
   const one = (v: unknown) => (Array.isArray(v) ? v[0] ?? null : v ?? null);

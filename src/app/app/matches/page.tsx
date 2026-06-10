@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Trophy, ChevronRight, CalendarX2 } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getMatches, getUserPredictions } from "@/lib/queries";
+import { getActiveCompetition, getMatches, getMyPredictions } from "@/lib/queries";
 import { PredictionCard } from "@/components/match/prediction-card";
 import { PageHeader } from "@/components/app/page-header";
 import { dayHeading, dayKey } from "@/lib/format";
@@ -21,11 +21,10 @@ export default async function MatchesPage() {
     );
   }
 
-  const matches = await getMatches(competition.id);
-  const predictions = await getUserPredictions(
-    profile.id,
-    matches.map((m) => m.id)
-  );
+  const [matches, predictions] = await Promise.all([
+    getMatches(competition.id),
+    getMyPredictions(profile.id),
+  ]);
 
   // Group by day
   const days = new Map<string, typeof matches>();
@@ -53,7 +52,7 @@ export default async function MatchesPage() {
         <Trophy className="h-5 w-5 text-pulpo-300" />
         <div className="flex-1">
           <p className="text-sm font-semibold">Bonus del torneo</p>
-          <p className="text-xs text-muted">Campeón, máximo goleador y más puntos extra</p>
+          <p className="text-xs text-muted">Campeón, goleador, ganadores de grupo… puntos extra</p>
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </Link>

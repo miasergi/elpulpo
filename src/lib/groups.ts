@@ -161,10 +161,39 @@ export async function getGroupActivity(groupId: string, competitionId: string): 
   return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
-/** My rank + points inside a group (or null if not yet ranked). */
-export async function getMyStanding(groupId: string, userId: string) {
-  const standings = await getStandings(groupId);
-  const total = standings.length;
-  const me = standings.find((s) => s.user_id === userId);
-  return me ? { ...me, total } : null;
+/** My rank + points in several groups at once (one query, no N+1). */
+export async function getMyStandings(groupIds: string[], userId: string) {
+  const result = new Map<string, { rank: number; total: number; total_points: number }>();
+  if (groupIds.length === 0) return result;
+
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from("group_standings")
+    .select("group_id,user_id,total_points,exacts")
+    .in("group_id", groupIds);
+
+  const byGroup = new Map<string, NonNullable<typeof rows>>();
+  for (const r of rows ?? []) {
+    if (!byGroup.has(r.group_id)) byGroup.set(r.group_id, []);
+    byGroup.get(r.group_id)!.push(r);
+  }
+
+  for (const [groupId, members] of byGroup) {
+    const sorted = [...members].sort(
+      (a, b) =>
+        b.total_points - a.total_points ||
+        b.exacts - a.exacts ||
+        a.user_id.localeCompare(b.user_id)
+    );
+    let rank = 0;
+    let prev: number | null = null;
+    sorted.forEach((r, i) => {
+      if (prev === null || r.total_points !== prev) rank = i + 1;
+      prev = r.total_points;
+      if (r.user_id === userId) {
+        result.set(groupId, { rank, total: sorted.length, total_points: r.total_points });
+      }
+    });
+  }
+  return result;
 }

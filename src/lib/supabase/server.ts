@@ -1,9 +1,11 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
 
-export async function createClient() {
+/** Per-request memoised: layout + page share one client instance. */
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -26,7 +28,7 @@ export async function createClient() {
       },
     }
   );
-}
+});
 
 /** Service-role client for trusted server-side jobs (scoring, API sync, admin). */
 export function createServiceClient() {

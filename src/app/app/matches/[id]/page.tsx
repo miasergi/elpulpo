@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { getMatchById, getMatchPredictions, getUserPredictions } from "@/lib/queries";
+import { getMatchById, getMatchPredictions, getMyPredictions } from "@/lib/queries";
 import { BackHeader } from "@/components/app/back-header";
 import { PredictionCard } from "@/components/match/prediction-card";
 import { PredictionsList } from "@/components/match/predictions-list";
@@ -22,7 +22,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const locked = isLocked(match.status, match.kickoff_at);
   const badge = statusBadge(match.status, match.minute);
   const [mine, predictions] = await Promise.all([
-    getUserPredictions(profile.id, [id]),
+    getMyPredictions(profile.id),
     locked ? getMatchPredictions(id, profile.id) : Promise.resolve([]),
   ]);
   const myPred = mine.get(id);

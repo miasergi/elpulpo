@@ -6,7 +6,8 @@ export async function getBonusMarkets(competitionId: string, userId: string) {
     .from("bonus_markets")
     .select("*")
     .eq("competition_id", competitionId)
-    .order("created_at", { ascending: true });
+    .order("points", { ascending: false })
+    .order("label", { ascending: true });
 
   const { data: mine } = await supabase
     .from("bonus_predictions")
@@ -17,19 +18,35 @@ export async function getBonusMarkets(competitionId: string, userId: string) {
   return { markets: markets ?? [], answers };
 }
 
-export async function getCompetitionTeams(competitionId: string) {
+export interface CompetitionTeam {
+  id: string;
+  name: string;
+  code: string | null;
+  flag_url: string | null;
+  /** Group letter (A..L) from the group-stage fixtures, if known. */
+  group: string | null;
+}
+
+export async function getCompetitionTeams(competitionId: string): Promise<CompetitionTeam[]> {
   const supabase = await createClient();
-  // Teams that appear in this competition's fixtures.
+  // Teams that appear in this competition's fixtures, with their group letter.
   const { data } = await supabase
     .from("matches")
-    .select("home:teams!matches_home_team_id_fkey(id,name,code,flag_url),away:teams!matches_away_team_id_fkey(id,name,code,flag_url)")
+    .select("stage, home:teams!matches_home_team_id_fkey(id,name,code,flag_url),away:teams!matches_away_team_id_fkey(id,name,code,flag_url)")
     .eq("competition_id", competitionId);
 
-  const map = new Map<string, { id: string; name: string; code: string | null; flag_url: string | null }>();
+  const map = new Map<string, CompetitionTeam>();
   for (const row of data ?? []) {
+    const group = row.stage?.startsWith("Grupo ") ? row.stage.slice(6).trim() : null;
     for (const side of [row.home, row.away]) {
       const t = Array.isArray(side) ? side[0] : side;
-      if (t && t.id) map.set(t.id, t);
+      if (!t || !t.id) continue;
+      const existing = map.get(t.id);
+      if (existing) {
+        if (!existing.group && group) existing.group = group;
+      } else {
+        map.set(t.id, { ...t, group });
+      }
     }
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));

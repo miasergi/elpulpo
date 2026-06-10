@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface TeamLite {
@@ -6,6 +9,11 @@ export interface TeamLite {
   short_name?: string | null;
   code?: string | null;
   flag_url?: string | null;
+}
+
+/** TheSportsDB sirve variantes redimensionadas añadiendo /small (≈250px) a la URL. */
+function resized(url: string) {
+  return /thesportsdb\.com\/.+\.(png|jpg)$/i.test(url) ? `${url}/small` : url;
 }
 
 export function TeamFlag({
@@ -17,29 +25,38 @@ export function TeamFlag({
   size?: number;
   className?: string;
 }) {
-  if (!team) {
+  // 0 = variante /small, 1 = URL original, 2 = iniciales
+  const [attempt, setAttempt] = useState(0);
+
+  if (!team || !team.flag_url || attempt > 1) {
     return (
       <div
-        className={cn("flex items-center justify-center rounded-full bg-surface-3 text-muted-foreground", className)}
-        style={{ width: size, height: size, fontSize: size * 0.4 }}
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full bg-surface-3 text-muted-foreground",
+          className
+        )}
+        style={{ width: size, height: size, fontSize: size * 0.3 }}
       >
-        ?
+        <span className="font-bold">
+          {team ? team.code ?? team.short_name ?? team.name.slice(0, 3).toUpperCase() : "?"}
+        </span>
       </div>
     );
   }
+
+  // Sin recorte: los escudos no son circulares, se muestran completos.
   return (
-    <div
-      className={cn("flex items-center justify-center overflow-hidden rounded-full bg-surface-3", className)}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={attempt === 0 ? resized(team.flag_url) : team.flag_url}
+      alt={team.name}
+      width={size}
+      height={size}
+      loading="lazy"
+      decoding="async"
+      className={cn("shrink-0 object-contain drop-shadow-sm", className)}
       style={{ width: size, height: size }}
-    >
-      {team.flag_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={team.flag_url} alt={team.name} className="h-full w-full object-cover" />
-      ) : (
-        <span className="font-bold text-muted" style={{ fontSize: size * 0.34 }}>
-          {team.code ?? team.short_name ?? team.name.slice(0, 3).toUpperCase()}
-        </span>
-      )}
-    </div>
+      onError={() => setAttempt((a) => a + 1)}
+    />
   );
 }

@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   description:
     "Crea grupos con tus amigos y predice los resultados del Mundial 2026. El que más acierte, gana.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "El Pulpo" },
   openGraph: {
     title: "El Pulpo · Predicciones de fútbol con amigos",

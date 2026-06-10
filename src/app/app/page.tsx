@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { ChevronRight, Plus, Trophy, CalendarClock, Check } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { getMyGroups, getActiveCompetition, getMatches, getUserPredictions } from "@/lib/queries";
-import { getMyStanding } from "@/lib/groups";
+import {
+  getMyGroups,
+  getActiveCompetition,
+  getMatches,
+  getMyPredictions,
+  getMyBonusCount,
+} from "@/lib/queries";
+import { getMyStandings } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
-import { HowToPlay } from "@/components/app/how-to-play";
+import { GettingStarted } from "@/components/app/getting-started";
 import { GroupIcon } from "@/components/groups/group-icon";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,23 +22,19 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { profile } = await requireProfile();
-  const [groups, competition] = await Promise.all([
+  const [groups, competition, predicted, bonusCount] = await Promise.all([
     getMyGroups(profile.id),
     getActiveCompetition(),
+    getMyPredictions(profile.id),
+    getMyBonusCount(profile.id),
   ]);
 
-  const standings = await Promise.all(
-    groups.map(async (g) => ({ group: g, me: await getMyStanding(g.id!, profile.id) }))
-  );
+  const [standings, allMatches] = await Promise.all([
+    getMyStandings(groups.map((g) => g.id!), profile.id),
+    competition ? getMatches(competition.id) : Promise.resolve([]),
+  ]);
 
-  // Next matches still open for predicting
-  let nextMatches: Awaited<ReturnType<typeof getMatches>> = [];
-  let predicted = new Map<string, { home: number; away: number }>();
-  if (competition) {
-    const all = await getMatches(competition.id);
-    nextMatches = all.filter((m) => m.status === "scheduled").slice(0, 3);
-    predicted = await getUserPredictions(profile.id, nextMatches.map((m) => m.id));
-  }
+  const nextMatches = allMatches.filter((m) => m.status === "scheduled").slice(0, 3);
 
   return (
     <div className="px-5 pt-4">
@@ -47,7 +49,11 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <HowToPlay />
+      <GettingStarted
+        hasGroup={groups.length > 0}
+        hasPrediction={predicted.size > 0}
+        hasBonus={bonusCount > 0}
+      />
 
       {/* Next matches */}
       <section className="mt-7">
@@ -117,27 +123,30 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {standings.map(({ group, me }) => (
-              <Link
-                key={group.id}
-                href={`/app/groups/${group.id}`}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3"
-              >
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${group.color}22` }}
+            {groups.map((group) => {
+              const me = standings.get(group.id!);
+              return (
+                <Link
+                  key={group.id}
+                  href={`/app/groups/${group.id}`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3"
                 >
-                  <GroupIcon name={group.icon} size={22} color={group.color} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{group.name}</p>
-                  <p className="text-xs text-muted">
-                    {me ? `${me.rank}º de ${me.total} · ${me.total_points} pts` : "Aún sin puntos"}
-                  </p>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </Link>
-            ))}
+                  <div
+                    className="flex h-11 w-11 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${group.color}22` }}
+                  >
+                    <GroupIcon name={group.icon} size={22} color={group.color} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{group.name}</p>
+                    <p className="text-xs text-muted">
+                      {me ? `${me.rank}º de ${me.total} · ${me.total_points} pts` : "Aún sin puntos"}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>

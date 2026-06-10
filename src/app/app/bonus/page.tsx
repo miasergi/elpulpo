@@ -36,6 +36,7 @@ export default async function BonusPage() {
         <BonusForm
           markets={markets.map((m) => ({
             id: m.id,
+            key: m.key,
             label: m.label,
             kind: m.kind,
             points: m.points,

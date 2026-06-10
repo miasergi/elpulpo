@@ -2,21 +2,22 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Lock, Trophy, Check } from "lucide-react";
+import { Lock, Trophy, Check, Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 interface Team {
   id: string;
   name: string;
   code: string | null;
   flag_url: string | null;
+  group: string | null;
 }
 
 interface Market {
   id: string;
+  key: string;
   label: string;
   kind: string;
   points: number;
@@ -25,6 +26,22 @@ interface Market {
   correct_team_id: string | null;
   correct_text: string | null;
   current: { team_id: string | null; answer_text: string | null } | null;
+}
+
+const HOST_CODES = new Set(["MEX", "USA", "CAN"]);
+
+/** Limit the team picker to the options that make sense for the market. */
+function optionsFor(market: Market, teams: Team[]): Team[] {
+  if (market.key.startsWith("group_winner_")) {
+    const letter = market.key.slice("group_winner_".length).toUpperCase();
+    const inGroup = teams.filter((t) => t.group === letter);
+    return inGroup.length > 0 ? inGroup : teams;
+  }
+  if (market.key === "host_best") {
+    const hosts = teams.filter((t) => t.code && HOST_CODES.has(t.code));
+    return hosts.length > 0 ? hosts : teams;
+  }
+  return teams;
 }
 
 export function BonusForm({
@@ -36,11 +53,28 @@ export function BonusForm({
   teams: Team[];
   userId: string;
 }) {
+  const main = markets.filter((m) => !m.key.startsWith("group_winner_"));
+  const groups = markets.filter((m) => m.key.startsWith("group_winner_"));
+
   return (
     <div className="space-y-4 pb-8">
-      {markets.map((m) => (
-        <MarketCard key={m.id} market={m} teams={teams} userId={userId} />
+      {main.map((m) => (
+        <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} />
       ))}
+
+      {groups.length > 0 && (
+        <>
+          <h2 className="flex items-center gap-2 pt-2 font-semibold">
+            <Medal className="h-4 w-4 text-pulpo-300" /> Ganadores de grupo
+          </h2>
+          <p className="-mt-2 text-xs text-muted">
+            ¿Quién acaba primero en cada grupo? +{groups[0].points} pts por acierto.
+          </p>
+          {groups.map((m) => (
+            <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} />
+          ))}
+        </>
+      )}
     </div>
   );
 }

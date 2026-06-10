@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, LogIn, ChevronRight, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getMyGroups } from "@/lib/queries";
-import { getMyStanding } from "@/lib/groups";
+import { getMyStandings } from "@/lib/groups";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { GroupIcon } from "@/components/groups/group-icon";
@@ -12,9 +12,8 @@ export const dynamic = "force-dynamic";
 export default async function GroupsPage() {
   const { profile } = await requireProfile();
   const groups = await getMyGroups(profile.id);
-  const withRank = await Promise.all(
-    groups.map(async (g) => ({ group: g, me: await getMyStanding(g.id!, profile.id) }))
-  );
+  const standings = await getMyStandings(groups.map((g) => g.id!), profile.id);
+  const withRank = groups.map((g) => ({ group: g, me: standings.get(g.id!) ?? null }));
 
   return (
     <div className="px-5">

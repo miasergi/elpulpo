@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper, Target, Scale, CircleCheck, type LucideIcon } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
 import { ActivityFeed } from "./activity-feed";
 import { GroupIcon } from "./group-icon";
+import { ScoringEditor } from "./scoring-editor";
 import type { StandingRow, ActivityItem } from "@/lib/groups";
 
 type Tab = "ranking" | "activity" | "chat" | "info";
@@ -127,14 +128,15 @@ export function GroupDetail({
               </div>
             )}
 
-            <div className="rounded-lg border border-border bg-surface/50 p-4">
-              <p className="mb-2 text-sm font-medium text-muted">Sistema de puntos</p>
-              <div className="space-y-1.5 text-sm">
-                <Row Icon={Target} label="Marcador exacto" value={group.pts_exact} />
-                <Row Icon={Scale} label="Diferencia de goles" value={group.pts_goal_diff} />
-                <Row Icon={CircleCheck} label="Ganador (1X2)" value={group.pts_result} />
-              </div>
-            </div>
+            <ScoringEditor
+              groupId={group.id}
+              canEdit={isOwner}
+              initial={{
+                pts_exact: group.pts_exact,
+                pts_goal_diff: group.pts_goal_diff,
+                pts_result: group.pts_result,
+              }}
+            />
 
             <div>
               <p className="mb-2 text-sm font-medium text-muted">Jugadores</p>
@@ -168,17 +170,6 @@ export function GroupDetail({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Row({ Icon, label, value }: { Icon: LucideIcon; label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-pulpo-300" /> {label}
-      </span>
-      <span className="font-bold text-pitch-400">+{value} pts</span>
     </div>
   );
 }
