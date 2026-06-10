@@ -1,48 +1,57 @@
 @import "tailwindcss";
 
 /*
-  El Pulpo — design system
-  Homenaje a Paul el Pulpo (predictor del Mundial 2010).
-  Dark-first, mobile-first. Octopus purple + electric pitch green.
+  El Pulpo — design system v2
+  Paleta tomada del logo: pulpo naranja + insignia turquesa + anillo rosa/cian.
+  Dark-first, mobile-first, minimalista con degradados y fondo de campo sutil.
 */
 
 :root {
-  /* Brand */
-  --pulpo-50: #f4f0ff;
-  --pulpo-100: #e9e0ff;
-  --pulpo-200: #d4c2ff;
-  --pulpo-300: #b794ff;
-  --pulpo-400: #9b66ff;
-  --pulpo-500: #7c3aed;
-  --pulpo-600: #6d28d9;
-  --pulpo-700: #5b21b6;
-  --pulpo-800: #4c1d95;
-  --pulpo-900: #2e1065;
+  /* Brand — naranja del pulpo (acción principal) */
+  --orange-400: #ff9d52;
+  --orange-500: #fb7e3c;
+  --orange-600: #ef6a26;
 
-  /* Electric pitch accent */
-  --pitch-400: #4ade80;
-  --pitch-500: #22c55e;
-  --pitch-600: #16a34a;
+  /* Turquesa / cian de la insignia (acentos, enlaces, estado activo) */
+  --teal-50: #ecfeff;
+  --teal-100: #cffafe;
+  --teal-200: #a5f3fc;
+  --teal-300: #5fe3ec;
+  --teal-400: #22d3ee;
+  --teal-500: #14b8a6;
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  --teal-800: #115e59;
+  --teal-900: #134e4a;
 
-  /* Semantic — dark theme by default */
-  --background: #0b0a12;
-  --surface: #14121f;
-  --surface-2: #1c1930;
-  --surface-3: #272442;
-  --border: #2d2a45;
-  --foreground: #f5f3ff;
-  --muted: #9c98b8;
-  --muted-foreground: #79759a;
+  /* Rosa del anillo (acento terciario) */
+  --pink-400: #ff7fb0;
+  --pink-500: #ff5c9d;
 
-  --primary: var(--pulpo-500);
+  /* Verde esmeralda (puntos / aciertos) */
+  --pitch-400: #34d399;
+  --pitch-500: #10b981;
+  --pitch-600: #059669;
+
+  /* Semánticos — tema oscuro con tinte turquesa */
+  --background: #07171c;
+  --surface: #0e2128;
+  --surface-2: #142c34;
+  --surface-3: #1d3a43;
+  --border: #244149;
+  --foreground: #f1faf9;
+  --muted: #93b4b6;
+  --muted-foreground: #6c8c8f;
+
+  --primary: var(--orange-500);
   --primary-foreground: #ffffff;
-  --accent: var(--pitch-500);
-  --accent-foreground: #04140a;
+  --accent: var(--teal-500);
+  --accent-foreground: #04201d;
 
-  --success: #22c55e;
+  --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --info: #38bdf8;
+  --info: var(--teal-400);
 
   --radius: 0.875rem;
 }
@@ -62,16 +71,24 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
-  --color-pulpo-50: var(--pulpo-50);
-  --color-pulpo-100: var(--pulpo-100);
-  --color-pulpo-200: var(--pulpo-200);
-  --color-pulpo-300: var(--pulpo-300);
-  --color-pulpo-400: var(--pulpo-400);
-  --color-pulpo-500: var(--pulpo-500);
-  --color-pulpo-600: var(--pulpo-600);
-  --color-pulpo-700: var(--pulpo-700);
-  --color-pulpo-800: var(--pulpo-800);
-  --color-pulpo-900: var(--pulpo-900);
+  /* "pulpo-*" se mantiene como nombre de token pero ahora es turquesa/cian */
+  --color-pulpo-50: var(--teal-50);
+  --color-pulpo-100: var(--teal-100);
+  --color-pulpo-200: var(--teal-200);
+  --color-pulpo-300: var(--teal-300);
+  --color-pulpo-400: var(--teal-400);
+  --color-pulpo-500: var(--teal-500);
+  --color-pulpo-600: var(--teal-600);
+  --color-pulpo-700: var(--teal-700);
+  --color-pulpo-800: var(--teal-800);
+  --color-pulpo-900: var(--teal-900);
+
+  --color-orange-400: var(--orange-400);
+  --color-orange-500: var(--orange-500);
+  --color-orange-600: var(--orange-600);
+
+  --color-pink-400: var(--pink-400);
+  --color-pink-500: var(--pink-500);
 
   --color-pitch-400: var(--pitch-400);
   --color-pitch-500: var(--pitch-500);
@@ -98,9 +115,11 @@ html {
 }
 
 body {
+  position: relative;
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, rgba(34, 197, 94, 0.08), transparent 55%),
+    radial-gradient(1100px 560px at 50% -8%, rgba(251, 126, 60, 0.18), transparent 58%),
+    radial-gradient(900px 520px at 50% 118%, rgba(20, 184, 166, 0.14), transparent 55%),
+    radial-gradient(120% 110% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55)),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
@@ -108,20 +127,39 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Faint football pitch behind everything — darkened so it never competes with content */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("/pitch.svg");
+  background-repeat: no-repeat;
+  background-position: center 18%;
+  background-size: 130% auto;
+  opacity: 0.05;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.15));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.15));
+}
+
 /* Safe area helpers for installed PWA */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Hide scrollbar but keep scroll (horizontal chips) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 @keyframes pulpo-float {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(-1.5deg); }
 }
-.animate-float { animation: pulpo-float 4s ease-in-out infinite; }
+.animate-float { animation: pulpo-float 4.5s ease-in-out infinite; }
 
-@keyframes shimmer {
-  100% { transform: translateX(100%); }
+/* Brand gradient text helper */
+.text-brand-gradient {
+  background: linear-gradient(95deg, var(--orange-400), var(--pink-400) 55%, var(--teal-300));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

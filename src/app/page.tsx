@@ -24,11 +24,12 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="flex flex-col items-center pt-8 text-center">
-        <div className="animate-float">
-          <PulpoMark size={120} />
+        <div className="relative animate-float">
+          <div className="absolute inset-0 -z-10 rounded-full bg-orange-500/25 blur-3xl" />
+          <PulpoMark size={148} />
         </div>
         <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight">
-          Predice el <span className="text-pulpo-300">Mundial 2026</span> con tus amigos
+          Predice el <span className="text-brand-gradient">Mundial 2026</span> con tus amigos
         </h1>
         <p className="mt-4 text-balance text-muted">
           Crea tu grupo, mete tus pronósticos y descubre quién es el verdadero oráculo. 🐙

@@ -41,6 +41,11 @@ async function apiGet(path: string) {
   if (!res.ok) throw new Error(`API-Football ${res.status}: ${await res.text()}`);
   const json = await res.json();
   if (json.errors && Object.keys(json.errors).length > 0) {
+    // Plan/access limitations (e.g. free plan can't read 2026) shouldn't crash the sync.
+    if (json.errors.plan || json.errors.access || json.errors.requests) {
+      console.warn("API-Football limitación de plan:", JSON.stringify(json.errors));
+      return [];
+    }
     throw new Error(`API-Football error: ${JSON.stringify(json.errors)}`);
   }
   return json.response as unknown[];

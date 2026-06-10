@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { getMyGroups, getActiveCompetition, getMatches, getUserPredictions } from "@/lib/queries";
 import { getMyStanding } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
+import { HowToPlay } from "@/components/app/how-to-play";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { TeamFlag } from "@/components/match/team-flag";
@@ -43,6 +44,8 @@ export default async function DashboardPage() {
           <Avatar src={profile.avatar_url} name={profile.display_name} size={44} />
         </Link>
       </div>
+
+      <HowToPlay />
 
       {/* Next matches */}
       <section className="mt-7">
