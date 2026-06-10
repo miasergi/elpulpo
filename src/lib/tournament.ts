@@ -1,6 +1,8 @@
 import { getMatches, type MatchRow } from "@/lib/queries";
 import type { TeamLite } from "@/components/match/team-flag";
 
+export type FormResult = "W" | "D" | "L";
+
 export interface StandingTeam {
   team: TeamLite;
   played: number;
@@ -12,6 +14,7 @@ export interface StandingTeam {
   gd: number;
   points: number;
   rank: number;
+  form: FormResult[]; // chronological, last entries are most recent
 }
 
 const GROUP_RE = /grupo|group/i;
@@ -28,7 +31,7 @@ export function computeGroupStandings(matches: MatchRow[]): StandingTeam[] {
   const table = new Map<string, StandingTeam>();
   const ensure = (t: TeamLite) => {
     if (!table.has(t.id)) {
-      table.set(t.id, { team: t, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points: 0, rank: 0 });
+      table.set(t.id, { team: t, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points: 0, rank: 0, form: [] });
     }
     return table.get(t.id)!;
   };
@@ -39,17 +42,20 @@ export function computeGroupStandings(matches: MatchRow[]): StandingTeam[] {
     if (m.away_team) ensure(m.away_team);
   }
 
-  for (const m of matches) {
-    if (m.status !== "finished" || m.home_score == null || m.away_score == null) continue;
-    if (!m.home_team || !m.away_team) continue;
-    const h = ensure(m.home_team);
-    const a = ensure(m.away_team);
+  // Process finished matches chronologically so "form" reads oldest → newest.
+  const finished = matches
+    .filter((m) => m.status === "finished" && m.home_score != null && m.away_score != null && m.home_team && m.away_team)
+    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime());
+
+  for (const m of finished) {
+    const h = ensure(m.home_team!);
+    const a = ensure(m.away_team!);
     h.played++; a.played++;
-    h.gf += m.home_score; h.ga += m.away_score;
-    a.gf += m.away_score; a.ga += m.home_score;
-    if (m.home_score > m.away_score) { h.won++; h.points += 3; a.lost++; }
-    else if (m.home_score < m.away_score) { a.won++; a.points += 3; h.lost++; }
-    else { h.drawn++; a.drawn++; h.points++; a.points++; }
+    h.gf += m.home_score!; h.ga += m.away_score!;
+    a.gf += m.away_score!; a.ga += m.home_score!;
+    if (m.home_score! > m.away_score!) { h.won++; h.points += 3; a.lost++; h.form.push("W"); a.form.push("L"); }
+    else if (m.home_score! < m.away_score!) { a.won++; a.points += 3; h.lost++; a.form.push("W"); h.form.push("L"); }
+    else { h.drawn++; a.drawn++; h.points++; a.points++; h.form.push("D"); a.form.push("D"); }
   }
 
   const rows = [...table.values()].map((r) => ({ ...r, gd: r.gf - r.ga }));

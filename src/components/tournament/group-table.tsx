@@ -38,6 +38,20 @@ export function GroupTable({ label, standings }: { label: string; standings: Sta
                 <div className="flex items-center gap-2">
                   <TeamFlag team={r.team} size={22} />
                   <span className="truncate font-medium">{r.team.short_name ?? r.team.name}</span>
+                  {r.form.length > 0 && (
+                    <span className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+                      {r.form.slice(-3).map((f, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            f === "W" ? "bg-pitch-500" : f === "D" ? "bg-muted-foreground" : "bg-danger"
+                          )}
+                          title={f === "W" ? "Victoria" : f === "D" ? "Empate" : "Derrota"}
+                        />
+                      ))}
+                    </span>
+                  )}
                 </div>
               </td>
               <td className="py-2 text-center tabular-nums text-muted">{r.played}</td>

@@ -4,6 +4,7 @@ import { getMatchById, getMatchPredictions, getUserPredictions } from "@/lib/que
 import { BackHeader } from "@/components/app/back-header";
 import { PredictionCard } from "@/components/match/prediction-card";
 import { PredictionsList } from "@/components/match/predictions-list";
+import { PredictionDistribution } from "@/components/match/prediction-distribution";
 import { TeamFlag } from "@/components/match/team-flag";
 import { Badge } from "@/components/ui/badge";
 import { kickoffLabel, isLocked, statusBadge } from "@/lib/format";
@@ -67,12 +68,19 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </p>
           </>
         ) : (
-          <PredictionsList
-            predictions={predictions}
-            actualHome={match.home_score}
-            actualAway={match.away_score}
-            currentUserId={profile.id}
-          />
+          <>
+            <PredictionDistribution
+              predictions={predictions}
+              homeName={match.home_team?.short_name ?? match.home_team?.name ?? "Local"}
+              awayName={match.away_team?.short_name ?? match.away_team?.name ?? "Visitante"}
+            />
+            <PredictionsList
+              predictions={predictions}
+              actualHome={match.home_score}
+              actualAway={match.away_score}
+              currentUserId={profile.id}
+            />
+          </>
         )}
       </div>
     </div>
