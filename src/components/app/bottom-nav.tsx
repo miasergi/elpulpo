@@ -13,7 +13,7 @@ const items = [
   { href: "/app/profile", label: "Perfil", icon: User },
 ];
 
-export function BottomNav() {
+export function BottomNav({ pendingCount = 0 }: { pendingCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -23,16 +23,24 @@ export function BottomNav() {
           const active = item.exact
             ? pathname === item.href
             : pathname.startsWith(item.href);
+          const badge = item.href === "/app/matches" && pendingCount > 0 ? pendingCount : 0;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+                "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
                 active ? "text-pulpo-300" : "text-muted-foreground"
               )}
             >
-              <item.icon className={cn("h-5 w-5", active && "fill-pulpo-500/20")} />
+              <span className="relative">
+                <item.icon className={cn("h-5 w-5", active && "fill-pulpo-500/20")} />
+                {badge > 0 && (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                    {badge > 9 ? "9+" : badge}
+                  </span>
+                )}
+              </span>
               {item.label}
             </Link>
           );
