@@ -16,13 +16,20 @@ const TEAMS = [
   ["Alemania", "GER"], ["Portugal", "POR"], ["Países Bajos", "NED"], ["Croacia", "CRO"],
 ];
 
+// Two realistic 4-team groups, with two matchdays played and one to predict.
 const FIXTURES = [
+  // ── Grupo A: MEX, CRO, USA, CAN ──
   ["MEX", "CRO", "2026-06-09T19:00:00Z", "finished", 2, 1, "Grupo A"],
-  ["ARG", "CAN", "2026-06-09T22:00:00Z", "finished", 3, 0, "Grupo B"],
-  ["ESP", "FRA", "2026-06-11T18:00:00Z", "scheduled", null, null, "Grupo C"],
-  ["BRA", "ENG", "2026-06-11T21:00:00Z", "scheduled", null, null, "Grupo D"],
-  ["GER", "POR", "2026-06-12T18:00:00Z", "scheduled", null, null, "Grupo E"],
-  ["NED", "USA", "2026-06-12T21:00:00Z", "scheduled", null, null, "Grupo F"],
+  ["USA", "CAN", "2026-06-09T22:00:00Z", "finished", 1, 1, "Grupo A"],
+  ["MEX", "USA", "2026-06-13T19:00:00Z", "finished", 0, 0, "Grupo A"],
+  ["CRO", "CAN", "2026-06-13T22:00:00Z", "finished", 2, 0, "Grupo A"],
+  ["MEX", "CAN", "2026-06-17T19:00:00Z", "scheduled", null, null, "Grupo A"],
+  ["CRO", "USA", "2026-06-17T22:00:00Z", "scheduled", null, null, "Grupo A"],
+  // ── Grupo B: ESP, FRA, GER, POR ──
+  ["ESP", "GER", "2026-06-10T18:00:00Z", "finished", 3, 1, "Grupo B"],
+  ["FRA", "POR", "2026-06-10T21:00:00Z", "finished", 2, 0, "Grupo B"],
+  ["ESP", "FRA", "2026-06-14T18:00:00Z", "scheduled", null, null, "Grupo B"],
+  ["GER", "POR", "2026-06-14T21:00:00Z", "scheduled", null, null, "Grupo B"],
 ];
 
 const BONUS = [
@@ -45,7 +52,8 @@ async function main() {
   if (e1) throw e1;
   console.log("✓ Competición:", comp.id);
 
-  // Clean up any earlier bad matches inserted without teams.
+  // Clean reseed of demo group-stage matches (también limpia cargas previas A–F).
+  await db.from("matches").delete().eq("competition_id", comp.id).like("stage", "Grupo %");
   await db.from("matches").delete().eq("competition_id", comp.id).is("home_team_id", null);
 
   // Teams — insert only the ones missing (teams.code has no unique constraint).
@@ -60,22 +68,14 @@ async function main() {
   const byCode = Object.fromEntries(teams.map((t) => [t.code, t.id]));
   console.log("✓ Equipos:", teams.length);
 
-  // Matches (skip if a match with same teams already exists)
-  for (const [h, a, kickoff, status, hs, as_, stage] of FIXTURES) {
-    const { data: existing } = await db
-      .from("matches")
-      .select("id")
-      .eq("competition_id", comp.id)
-      .eq("home_team_id", byCode[h])
-      .eq("away_team_id", byCode[a])
-      .maybeSingle();
-    if (existing) continue;
-    await db.from("matches").insert({
-      competition_id: comp.id, home_team_id: byCode[h], away_team_id: byCode[a],
-      kickoff_at: kickoff, status, home_score: hs, away_score: as_, stage,
-    });
-  }
-  console.log("✓ Partidos cargados");
+  // Insert fresh demo matches
+  const matchRows = FIXTURES.map(([h, a, kickoff, status, hs, as_, stage]) => ({
+    competition_id: comp.id, home_team_id: byCode[h], away_team_id: byCode[a],
+    kickoff_at: kickoff, status, home_score: hs, away_score: as_, stage,
+  }));
+  const { error: me } = await db.from("matches").insert(matchRows);
+  if (me) throw me;
+  console.log("✓ Partidos cargados:", matchRows.length);
 
   // Bonus markets
   await db.from("bonus_markets").upsert(
