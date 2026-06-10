@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { getMatchById, getMatchPredictions, getMyPredictions } from "@/lib/queries";
+import { getActiveGroup, getMatchById, getMatchPredictions, getMyPredictions } from "@/lib/queries";
 import { BackHeader } from "@/components/app/back-header";
 import { PredictionCard } from "@/components/match/prediction-card";
 import { PredictionsList } from "@/components/match/predictions-list";
@@ -21,9 +21,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
   const locked = isLocked(match.status, match.kickoff_at);
   const badge = statusBadge(match.status, match.minute);
+  const group = await getActiveGroup(profile.active_group_id);
   const [mine, predictions] = await Promise.all([
-    getMyPredictions(profile.id),
-    locked ? getMatchPredictions(id, profile.id) : Promise.resolve([]),
+    getMyPredictions(profile.id, group?.id ?? null),
+    locked && group ? getMatchPredictions(id, profile.id, group.id) : Promise.resolve([]),
   ]);
   const myPred = mine.get(id);
 
@@ -63,9 +64,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               initialHome={myPred?.home ?? null}
               initialAway={myPred?.away ?? null}
               userId={profile.id}
+              groupId={group?.id ?? null}
             />
             <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" /> Las predicciones de los demás se revelan al empezar el partido.
+              <Lock className="h-3 w-3" />
+              {group
+                ? `Predicción para ${group.name} · las de los demás se revelan al empezar.`
+                : "Las predicciones de los demás se revelan al empezar el partido."}
             </p>
           </>
         ) : (

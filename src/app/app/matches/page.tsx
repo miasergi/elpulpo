@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { Trophy, ChevronRight, CalendarX2, Users } from "lucide-react";
+import { Trophy, ChevronRight, CalendarX2, Repeat } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getMatches, getMyPredictions, getMyGroups } from "@/lib/queries";
+import { getActiveCompetition, getActiveGroup, getMatches, getMyPredictions } from "@/lib/queries";
 import { MatchesBrowser } from "@/components/match/matches-browser";
 import { PageHeader } from "@/components/app/page-header";
+import { GroupIcon } from "@/components/groups/group-icon";
+import { AdBanner } from "@/components/ads/ad-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +22,10 @@ export default async function MatchesPage() {
     );
   }
 
-  const [matches, predictions, groups] = await Promise.all([
+  const group = await getActiveGroup(profile.active_group_id);
+  const [matches, predictions] = await Promise.all([
     getMatches(competition.id),
-    getMyPredictions(profile.id),
-    getMyGroups(profile.id),
+    getMyPredictions(profile.id, group?.id ?? null),
   ]);
 
   return (
@@ -34,22 +36,31 @@ export default async function MatchesPage() {
         <p className="text-sm text-muted">{competition.name}</p>
       </header>
 
-      <Link
-        href={groups.length > 0 ? "/app/groups" : "/app/groups/join"}
-        className="mb-2 mt-1 flex items-center gap-2 text-xs text-muted"
-      >
-        <Users className="h-3.5 w-3.5 text-pulpo-300" />
-        {groups.length > 0 ? (
-          <>
-            Tus predicciones cuentan en{" "}
-            {groups.length === 1 ? "tu grupo" : `tus ${groups.length} grupos`} automáticamente
-          </>
-        ) : (
-          <span className="text-warning">
-            Únete a un grupo para competir con tus predicciones →
+      {/* Active-group context: each group has its own predictions. */}
+      {group ? (
+        <Link
+          href="/app/profile"
+          className="mb-2 mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2"
+        >
+          <GroupIcon name={group.icon} size={16} color={group.color} />
+          <span className="flex-1 truncate text-xs text-muted">
+            Prediciendo para <span className="font-semibold text-foreground">{group.name}</span>
           </span>
-        )}
-      </Link>
+          <span className="flex items-center gap-1 text-xs text-pulpo-300">
+            <Repeat className="h-3 w-3" /> Cambiar
+          </span>
+        </Link>
+      ) : (
+        <Link
+          href="/app/groups"
+          className="mb-2 mt-1 flex items-center gap-2 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5 text-xs"
+        >
+          <span className="flex-1 text-muted">
+            Cada grupo tiene sus propias predicciones.{" "}
+            <span className="font-semibold text-warning">Únete a un grupo para empezar →</span>
+          </span>
+        </Link>
+      )}
 
       <Link
         href="/app/bonus"
@@ -63,6 +74,8 @@ export default async function MatchesPage() {
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </Link>
 
+      {!profile.is_pro && <AdBanner className="mt-3" />}
+
       {matches.length === 0 ? (
         <EmptyState />
       ) : (
@@ -70,6 +83,7 @@ export default async function MatchesPage() {
           matches={matches}
           predictions={Object.fromEntries(predictions)}
           userId={profile.id}
+          groupId={group?.id ?? null}
           now={new Date().toISOString()}
         />
       )}

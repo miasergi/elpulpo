@@ -15,6 +15,8 @@ export interface Database {
           display_name: string;
           avatar_url: string | null;
           favorite_team: string | null;
+          is_pro: boolean;
+          active_group_id: string | null;
           created_at: string;
         };
         Insert: { id: string; username: string; display_name: string; avatar_url?: string | null; favorite_team?: string | null; created_at?: string };
@@ -112,12 +114,13 @@ export interface Database {
           id: string;
           user_id: string;
           match_id: string;
+          group_id: string;
           home_score: number;
           away_score: number;
           created_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["predictions"]["Row"]> & { user_id: string; match_id: string; home_score: number; away_score: number };
+        Insert: Partial<Database["public"]["Tables"]["predictions"]["Row"]> & { user_id: string; match_id: string; group_id: string; home_score: number; away_score: number };
         Update: Partial<Database["public"]["Tables"]["predictions"]["Row"]>;
         Relationships: Rels;
       };
@@ -144,12 +147,13 @@ export interface Database {
           id: string;
           user_id: string;
           market_id: string;
+          group_id: string;
           team_id: string | null;
           answer_text: string | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["bonus_predictions"]["Row"]> & { user_id: string; market_id: string };
+        Insert: Partial<Database["public"]["Tables"]["bonus_predictions"]["Row"]> & { user_id: string; market_id: string; group_id: string };
         Update: Partial<Database["public"]["Tables"]["bonus_predictions"]["Row"]>;
         Relationships: Rels;
       };
@@ -197,7 +201,7 @@ export interface Database {
     Functions: {
       join_group_by_code: { Args: { code: string }; Returns: string };
       predicted_user_ids: {
-        Args: { mids: string[] };
+        Args: { gid: string; mids: string[] };
         Returns: { match_id: string; user_id: string }[];
       };
       create_group: {

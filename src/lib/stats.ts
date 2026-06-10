@@ -13,13 +13,17 @@ export interface PlayerStats {
 
 const DEFAULTS = { exact: 5, diff: 3, result: 2 };
 
-/** Aggregate stats for a player across all finished matches they predicted. */
-export async function getPlayerStats(userId: string): Promise<PlayerStats> {
+/** Aggregate stats for a player in one group, across finished matches they predicted. */
+export async function getPlayerStats(userId: string, groupId: string | null): Promise<PlayerStats> {
+  if (!groupId) {
+    return { played: 0, exacts: 0, results: 0, goalDiffs: 0, accuracy: 0, points: 0, bestStreak: 0, currentStreak: 0 };
+  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
     .select("home_score, away_score, match:matches(kickoff_at, status, home_score, away_score)")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("group_id", groupId);
 
   const rows = (data ?? [])
     .map((p) => {

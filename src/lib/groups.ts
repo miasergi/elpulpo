@@ -130,15 +130,11 @@ export async function getGroupActivity(groupId: string, competitionId: string): 
   // Results with exact hitters among group members
   const matchList = matches ?? [];
   if (matchList.length > 0) {
-    const memberIds = (
-      await supabase.from("group_members").select("user_id").eq("group_id", groupId)
-    ).data?.map((r) => r.user_id) ?? [];
-
     const { data: preds } = await supabase
       .from("predictions")
       .select("match_id, home_score, away_score, author:profiles(display_name, avatar_url)")
-      .in("match_id", matchList.map((m) => m.id))
-      .in("user_id", memberIds);
+      .eq("group_id", groupId)
+      .in("match_id", matchList.map((m) => m.id));
 
     for (const m of matchList) {
       const home = Array.isArray(m.home) ? m.home[0] : m.home;
@@ -179,7 +175,7 @@ export interface GroupRecentMatch {
 /** Matchboard for a group: who has predicted the next matches (existence
  *  only, no scores) and everyone's predictions + points for locked ones. */
 export async function getGroupMatchboard(
-  group: { competition_id: string; pts_exact: number; pts_goal_diff: number; pts_result: number },
+  group: { id: string; competition_id: string; pts_exact: number; pts_goal_diff: number; pts_result: number },
   memberIds: string[]
 ): Promise<{ upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] }> {
   const supabase = await createClient();
@@ -193,12 +189,13 @@ export async function getGroupMatchboard(
 
   const [{ data: who, error: whoError }, { data: preds }] = await Promise.all([
     open.length > 0
-      ? supabase.rpc("predicted_user_ids", { mids: open.map((m) => m.id) })
+      ? supabase.rpc("predicted_user_ids", { gid: group.id, mids: open.map((m) => m.id) })
       : Promise.resolve({ data: [], error: null }),
     locked.length > 0
       ? supabase
           .from("predictions")
           .select("match_id, user_id, home_score, away_score")
+          .eq("group_id", group.id)
           .in("match_id", locked.map((m) => m.id))
           .in("user_id", memberIds)
       : Promise.resolve({ data: [], error: null }),

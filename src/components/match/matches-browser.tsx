@@ -17,11 +17,13 @@ export function MatchesBrowser({
   matches,
   predictions,
   userId,
+  groupId,
   now,
 }: {
   matches: MatchWithTeams[];
   predictions: Record<string, PredictionLite>;
   userId: string;
+  groupId: string | null;
   /** Server timestamp, reused on the client so SSR and hydration agree. */
   now: string;
 }) {
@@ -129,6 +131,7 @@ export function MatchesBrowser({
                       initialHome={p?.home ?? null}
                       initialAway={p?.away ?? null}
                       userId={userId}
+                      groupId={groupId}
                       linkToDetail
                     />
                   );

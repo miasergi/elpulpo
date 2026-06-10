@@ -49,10 +49,12 @@ export function BonusForm({
   markets,
   teams,
   userId,
+  groupId,
 }: {
   markets: Market[];
   teams: Team[];
   userId: string;
+  groupId: string;
 }) {
   const main = markets.filter((m) => !m.key.startsWith("group_winner_"));
   const groups = markets.filter((m) => m.key.startsWith("group_winner_"));
@@ -60,7 +62,7 @@ export function BonusForm({
   return (
     <div className="space-y-4 pb-8">
       {main.map((m) => (
-        <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} />
+        <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} groupId={groupId} />
       ))}
 
       {groups.length > 0 && (
@@ -72,7 +74,7 @@ export function BonusForm({
             ¿Quién acaba primero en cada grupo? +{groups[0].points} pts por acierto.
           </p>
           {groups.map((m) => (
-            <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} />
+            <MarketCard key={m.id} market={m} teams={optionsFor(m, teams)} userId={userId} groupId={groupId} />
           ))}
         </>
       )}
@@ -80,7 +82,17 @@ export function BonusForm({
   );
 }
 
-function MarketCard({ market, teams, userId }: { market: Market; teams: Team[]; userId: string }) {
+function MarketCard({
+  market,
+  teams,
+  userId,
+  groupId,
+}: {
+  market: Market;
+  teams: Team[];
+  userId: string;
+  groupId: string;
+}) {
   const closed = market.resolved || (market.closes_at ? new Date(market.closes_at) <= new Date() : false);
   const router = useRouter();
   const [teamId, setTeamId] = useState(market.current?.team_id ?? "");
@@ -93,10 +105,11 @@ function MarketCard({ market, teams, userId }: { market: Market; teams: Team[]; 
       {
         user_id: userId,
         market_id: market.id,
+        group_id: groupId,
         team_id: market.kind === "team" ? (nextTeam ?? teamId) || null : null,
         answer_text: market.kind === "text" ? (nextText ?? text) || null : null,
       },
-      { onConflict: "user_id,market_id" }
+      { onConflict: "user_id,market_id,group_id" }
     );
     if (error) {
       toast.error(/closed/i.test(error.message) ? "Este bonus ya está cerrado" : "No se pudo guardar");

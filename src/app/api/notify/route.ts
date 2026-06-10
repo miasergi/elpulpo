@@ -85,7 +85,19 @@ export async function GET(request: Request) {
       .select("user_id, home_score, away_score")
       .eq("match_id", m.id)
       .in("user_id", subscribers);
+    // Predictions are per group now: one notification per user, best score.
+    const byUser = new Map<string, { user_id: string; home_score: number; away_score: number }>();
     for (const p of preds ?? []) {
+      const prev = byUser.get(p.user_id);
+      if (
+        !prev ||
+        points(p.home_score, p.away_score, m.home_score!, m.away_score!) >
+          points(prev.home_score, prev.away_score, m.home_score!, m.away_score!)
+      ) {
+        byUser.set(p.user_id, p);
+      }
+    }
+    for (const p of byUser.values()) {
       const pts = points(p.home_score, p.away_score, m.home_score!, m.away_score!);
       const body =
         pts > 0

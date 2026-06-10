@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-export async function getBonusMarkets(competitionId: string, userId: string) {
+export async function getBonusMarkets(competitionId: string, userId: string, groupId: string | null) {
   const supabase = await createClient();
   const { data: markets } = await supabase
     .from("bonus_markets")
@@ -9,10 +9,13 @@ export async function getBonusMarkets(competitionId: string, userId: string) {
     .order("points", { ascending: false })
     .order("label", { ascending: true });
 
-  const { data: mine } = await supabase
-    .from("bonus_predictions")
-    .select("market_id, team_id, answer_text")
-    .eq("user_id", userId);
+  const { data: mine } = groupId
+    ? await supabase
+        .from("bonus_predictions")
+        .select("market_id, team_id, answer_text")
+        .eq("user_id", userId)
+        .eq("group_id", groupId)
+    : { data: [] };
 
   const answers = new Map((mine ?? []).map((m) => [m.market_id, m]));
   return { markets: markets ?? [], answers };

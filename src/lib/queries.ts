@@ -51,16 +51,30 @@ export interface MatchPrediction {
   avatar_url: string | null;
 }
 
-/** Predictions for a match visible to the caller (own + group-mates once locked, via RLS). */
+/** The user's active group (Biwenger-style context all predictions live in). */
+export const getActiveGroup = cache(async (activeGroupId: string | null) => {
+  if (!activeGroupId) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("id", activeGroupId)
+    .maybeSingle();
+  return data;
+});
+
+/** Predictions for a match within one group (own + group-mates once locked, via RLS). */
 export async function getMatchPredictions(
   matchId: string,
-  currentUserId: string
+  currentUserId: string,
+  groupId: string
 ): Promise<MatchPrediction[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
     .select("user_id, home_score, away_score, author:profiles(display_name, avatar_url)")
-    .eq("match_id", matchId);
+    .eq("match_id", matchId)
+    .eq("group_id", groupId);
 
   return (data ?? [])
     .map((p) => {
@@ -76,28 +90,32 @@ export async function getMatchPredictions(
     .sort((a, b) => (a.user_id === currentUserId ? -1 : b.user_id === currentUserId ? 1 : 0));
 }
 
-/** All of a user's match predictions, as a map by match id.
+/** The user's match predictions in one group, as a map by match id.
  *  Per-request memoised: the nav badge, dashboard and matches page share it. */
-export const getMyPredictions = cache(async (userId: string) => {
+export const getMyPredictions = cache(async (userId: string, groupId: string | null) => {
+  const map = new Map<string, { home: number; away: number }>();
+  if (!groupId) return map;
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
     .select("match_id,home_score,away_score")
-    .eq("user_id", userId);
-  const map = new Map<string, { home: number; away: number }>();
+    .eq("user_id", userId)
+    .eq("group_id", groupId);
   for (const p of data ?? []) {
     map.set(p.match_id, { home: p.home_score, away: p.away_score });
   }
   return map;
 });
 
-/** How many bonus questions the user has answered (for onboarding). */
-export const getMyBonusCount = cache(async (userId: string) => {
+/** How many bonus questions the user has answered in a group (for onboarding). */
+export const getMyBonusCount = cache(async (userId: string, groupId: string | null) => {
+  if (!groupId) return 0;
   const supabase = await createClient();
   const { count } = await supabase
     .from("bonus_predictions")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("group_id", groupId);
   return count ?? 0;
 });
 

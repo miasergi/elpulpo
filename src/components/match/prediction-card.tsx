@@ -30,12 +30,15 @@ export function PredictionCard({
   initialHome,
   initialAway,
   userId,
+  groupId,
   linkToDetail = false,
 }: {
   match: MatchWithTeams;
   initialHome: number | null;
   initialAway: number | null;
   userId: string;
+  /** Group the prediction belongs to; null = user has no active group yet. */
+  groupId: string | null;
   linkToDetail?: boolean;
 }) {
   const locked = isLocked(match.status, match.kickoff_at);
@@ -47,7 +50,7 @@ export function PredictionCard({
   const badge = statusBadge(match.status, match.minute);
 
   function bump(side: "home" | "away", delta: number) {
-    if (locked) return;
+    if (locked || !groupId) return;
     const setter = side === "home" ? setHome : setAway;
     setter((v) => Math.max(0, Math.min(99, (v ?? 0) + delta)));
     setState("idle");
@@ -55,7 +58,7 @@ export function PredictionCard({
 
   // Debounced auto-save once both scores are set.
   useEffect(() => {
-    if (locked || home === null || away === null) return;
+    if (locked || !groupId || home === null || away === null) return;
     if (home === initialHome && away === initialAway) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
@@ -70,8 +73,8 @@ export function PredictionCard({
       const { error } = await supabase
         .from("predictions")
         .upsert(
-          { user_id: userId, match_id: match.id, home_score: home, away_score: away },
-          { onConflict: "user_id,match_id" }
+          { user_id: userId, match_id: match.id, group_id: groupId, home_score: home, away_score: away },
+          { onConflict: "user_id,match_id,group_id" }
         );
       if (error) {
         setState("idle");
@@ -155,6 +158,10 @@ export function PredictionCard({
           </span>
         ) : locked && !predicted ? (
           <span className="text-muted-foreground">No predijiste este partido</span>
+        ) : !groupId ? (
+          <Link href="/app/groups" className="font-medium text-pulpo-300">
+            Únete a un grupo para predecir →
+          </Link>
         ) : state === "saving" ? (
           <span className="text-muted-foreground">Guardando…</span>
         ) : state === "saved" ? (

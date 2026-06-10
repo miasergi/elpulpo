@@ -6,6 +6,7 @@ import { BackHeader } from "@/components/app/back-header";
 import { SyncButton } from "@/components/admin/sync-button";
 import { AdminMatchList } from "@/components/admin/admin-match-list";
 import { AdminBonusList } from "@/components/admin/admin-bonus-list";
+import { AdminUserList } from "@/components/admin/admin-user-list";
 
 export const dynamic = "force-dynamic";
 
@@ -54,9 +55,26 @@ export default async function AdminPage() {
             <AdminBonusList markets={bonusMarkets} teams={teams} />
           </section>
         )}
+
+        <section>
+          <h2 className="mb-1 font-semibold">Usuarios Pro</h2>
+          <p className="mb-2 text-xs text-muted">
+            Los usuarios Pro no ven anuncios. Actívalo a dedo a quien quieras.
+          </p>
+          <AdminUserList users={await fetchUsers()} />
+        </section>
       </div>
     </div>
   );
+}
+
+async function fetchUsers() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id,display_name,username,avatar_url,is_pro")
+    .order("created_at", { ascending: true });
+  return data ?? [];
 }
 
 async function fetchBonus(competitionId: string) {

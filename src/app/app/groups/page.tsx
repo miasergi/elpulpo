@@ -1,23 +1,25 @@
 import Link from "next/link";
-import { Plus, LogIn, ChevronRight, Users } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Plus, LogIn, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getMyGroups } from "@/lib/queries";
-import { getMyStandings } from "@/lib/groups";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
-import { GroupIcon } from "@/components/groups/group-icon";
 
 export const dynamic = "force-dynamic";
 
+/** Biwenger-style: the Groups tab IS your active group. Switching happens in
+ *  the profile. Without an active group this becomes the onboarding screen. */
 export default async function GroupsPage() {
   const { profile } = await requireProfile();
+
+  if (profile.active_group_id) redirect(`/app/groups/${profile.active_group_id}`);
+
   const groups = await getMyGroups(profile.id);
-  const standings = await getMyStandings(groups.map((g) => g.id!), profile.id);
-  const withRank = groups.map((g) => ({ group: g, me: standings.get(g.id!) ?? null }));
 
   return (
     <div className="px-5">
-      <PageHeader title="Grupos" subtitle="Tus porras con amigos" />
+      <PageHeader title="Grupos" subtitle="Tu porra con amigos" />
 
       <div className="grid grid-cols-2 gap-2 py-2">
         <Link href="/app/groups/new">
@@ -28,36 +30,24 @@ export default async function GroupsPage() {
         </Link>
       </div>
 
-      {groups.length === 0 ? (
-        <div className="mt-12 text-center text-sm text-muted">
-          <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-          <p className="mt-3">Todavía no estás en ningún grupo.<br />Crea uno o únete con un código.</p>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-2">
-          {withRank.map(({ group, me }) => (
-            <Link
-              key={group.id}
-              href={`/app/groups/${group.id}`}
-              className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3.5"
-            >
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${group.color}22` }}
-              >
-                <GroupIcon name={group.icon} size={24} color={group.color} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{group.name}</p>
-                <p className="text-xs text-muted">
-                  {me ? `Vas ${me.rank}º · ${me.total_points} pts` : "Sin puntos aún"}
-                </p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      <div className="mt-12 text-center text-sm text-muted">
+        <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+        {groups.length === 0 ? (
+          <p className="mt-3">
+            Todavía no estás en ningún grupo.
+            <br />
+            Cada grupo tiene sus propias predicciones, como una liga fantasy.
+          </p>
+        ) : (
+          <p className="mt-3">
+            No tienes grupo activo.
+            <br />
+            <Link href="/app/profile" className="font-medium text-pulpo-300">
+              Elige uno en tu perfil →
             </Link>
-          ))}
-        </div>
-      )}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

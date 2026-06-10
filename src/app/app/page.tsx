@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ChevronRight, Plus, Trophy, CalendarClock, Check } from "lucide-react";
+import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import {
   getMyGroups,
   getActiveCompetition,
+  getActiveGroup,
   getMatches,
   getMyPredictions,
   getMyBonusCount,
@@ -15,7 +16,9 @@ import { WorldCupHero } from "@/components/app/world-cup-hero";
 import { GroupIcon } from "@/components/groups/group-icon";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { TeamFlag } from "@/components/match/team-flag";
+import { AdBanner } from "@/components/ads/ad-banner";
 import { kickoffLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +26,12 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { profile } = await requireProfile();
-  const [groups, competition, predicted, bonusCount] = await Promise.all([
+  const [groups, competition, activeGroup, predicted, bonusCount] = await Promise.all([
     getMyGroups(profile.id),
     getActiveCompetition(),
-    getMyPredictions(profile.id),
-    getMyBonusCount(profile.id),
+    getActiveGroup(profile.active_group_id),
+    getMyPredictions(profile.id, profile.active_group_id),
+    getMyBonusCount(profile.id, profile.active_group_id),
   ]);
 
   const [standings, allMatches] = await Promise.all([
@@ -36,6 +40,7 @@ export default async function DashboardPage() {
   ]);
 
   const nextMatches = allMatches.filter((m) => m.status === "scheduled").slice(0, 3);
+  const me = activeGroup ? standings.get(activeGroup.id) : null;
 
   return (
     <div className="px-5 pt-4">
@@ -43,7 +48,10 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted">Hola,</p>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            {profile.display_name}
+            {profile.is_pro && <Badge variant="accent">PRO</Badge>}
+          </h1>
         </div>
         <Link href="/app/profile">
           <Avatar src={profile.avatar_url} name={profile.display_name} size={44} />
@@ -58,8 +66,67 @@ export default async function DashboardPage() {
         hasBonus={bonusCount > 0}
       />
 
-      {/* Next matches */}
+      {/* Active group */}
       <section className="mt-7">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Trophy className="h-4 w-4 text-pulpo-300" /> Mi grupo
+          </h2>
+          {groups.length > 1 && (
+            <Link href="/app/profile" className="flex items-center gap-1 text-sm text-pulpo-300">
+              <Repeat className="h-3.5 w-3.5" /> Cambiar
+            </Link>
+          )}
+        </div>
+
+        {!activeGroup ? (
+          <div className="rounded-lg border border-dashed border-border bg-surface/40 p-6 text-center">
+            <PulpoMark size={56} className="mx-auto" />
+            <p className="mt-3 text-sm text-muted">
+              Cada grupo tiene sus propias predicciones, como una liga fantasy.
+              <br />
+              ¡Crea una porra o únete con un código!
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Link href="/app/groups/new" className="flex-1">
+                <Button size="full" variant="primary"><Plus className="h-4 w-4" /> Crear</Button>
+              </Link>
+              <Link href="/app/groups/join" className="flex-1">
+                <Button size="full" variant="secondary">Unirme</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Link
+              href="/app/groups"
+              className="flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-surface/60 p-3.5"
+            >
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-lg"
+                style={{ backgroundColor: `${activeGroup.color}22` }}
+              >
+                <GroupIcon name={activeGroup.icon} size={24} color={activeGroup.color} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{activeGroup.name}</p>
+                <p className="text-xs text-muted">
+                  {me ? `Vas ${me.rank}º de ${me.total} · ${me.total_points} pts` : "Aún sin puntos"}
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </Link>
+            {groups.length > 1 && (
+              <p className="mt-1.5 text-center text-xs text-muted-foreground">
+                Tienes {groups.length} grupos · cambia de grupo desde tu perfil
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* Next matches */}
+      <section className="mt-8">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold">
             <CalendarClock className="h-4 w-4 text-pulpo-300" /> Próximos partidos
@@ -100,59 +167,7 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* My groups */}
-      <section className="mt-8">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <Trophy className="h-4 w-4 text-pulpo-300" /> Mis grupos
-          </h2>
-          <Link href="/app/groups" className="text-sm text-pulpo-300">Ver todos</Link>
-        </div>
-
-        {groups.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-surface/40 p-6 text-center">
-            <PulpoMark size={56} className="mx-auto" />
-            <p className="mt-3 text-sm text-muted">
-              Aún no tienes ningún grupo. ¡Crea una porra o únete con un código!
-            </p>
-            <div className="mt-4 flex gap-2">
-              <Link href="/app/groups/new" className="flex-1">
-                <Button size="full" variant="primary"><Plus className="h-4 w-4" /> Crear</Button>
-              </Link>
-              <Link href="/app/groups/join" className="flex-1">
-                <Button size="full" variant="secondary">Unirme</Button>
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {groups.map((group) => {
-              const me = standings.get(group.id!);
-              return (
-                <Link
-                  key={group.id}
-                  href={`/app/groups/${group.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3"
-                >
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: `${group.color}22` }}
-                  >
-                    <GroupIcon name={group.icon} size={22} color={group.color} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{group.name}</p>
-                    <p className="text-xs text-muted">
-                      {me ? `${me.rank}º de ${me.total} · ${me.total_points} pts` : "Aún sin puntos"}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {!profile.is_pro && <AdBanner className="mt-8" />}
     </div>
   );
 }
