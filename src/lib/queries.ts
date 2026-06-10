@@ -31,6 +31,49 @@ export async function getMatches(competitionId: string): Promise<MatchRow[]> {
   return (data ?? []).map((m) => normaliseMatch(m as unknown as Record<string, unknown>));
 }
 
+export async function getMatchById(id: string): Promise<MatchRow | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("matches")
+    .select(`id,competition_id,kickoff_at,status,minute,home_score,away_score,stage,${TEAM_SELECT}`)
+    .eq("id", id)
+    .maybeSingle();
+  return data ? normaliseMatch(data as unknown as Record<string, unknown>) : null;
+}
+
+export interface MatchPrediction {
+  user_id: string;
+  home_score: number;
+  away_score: number;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+/** Predictions for a match visible to the caller (own + group-mates once locked, via RLS). */
+export async function getMatchPredictions(
+  matchId: string,
+  currentUserId: string
+): Promise<MatchPrediction[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("predictions")
+    .select("user_id, home_score, away_score, author:profiles(display_name, avatar_url)")
+    .eq("match_id", matchId);
+
+  return (data ?? [])
+    .map((p) => {
+      const a = Array.isArray(p.author) ? p.author[0] : p.author;
+      return {
+        user_id: p.user_id,
+        home_score: p.home_score,
+        away_score: p.away_score,
+        display_name: a?.display_name ?? "Jugador",
+        avatar_url: a?.avatar_url ?? null,
+      };
+    })
+    .sort((a, b) => (a.user_id === currentUserId ? -1 : b.user_id === currentUserId ? 1 : 0));
+}
+
 export async function getUserPredictions(userId: string, matchIds: string[]) {
   if (matchIds.length === 0) return new Map<string, { home: number; away: number }>();
   const supabase = await createClient();

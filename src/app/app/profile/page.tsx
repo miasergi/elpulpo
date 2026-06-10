@@ -3,14 +3,20 @@ import { ShieldCheck } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getMyGroups } from "@/lib/queries";
 import { getAdminUser } from "@/lib/admin";
+import { getPlayerStats } from "@/lib/stats";
 import { PageHeader } from "@/components/app/page-header";
 import { ProfileForm } from "@/components/profile/profile-form";
+import { StatsGrid } from "@/components/profile/stats-grid";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const { profile, user } = await requireProfile();
-  const [groups, admin] = await Promise.all([getMyGroups(profile.id), getAdminUser()]);
+  const [groups, admin, stats] = await Promise.all([
+    getMyGroups(profile.id),
+    getAdminUser(),
+    getPlayerStats(profile.id),
+  ]);
 
   return (
     <div className="px-5">
@@ -25,6 +31,7 @@ export default async function ProfilePage() {
           email: user.email ?? "",
         }}
         groupCount={groups.length}
+        stats={stats}
       />
       {admin && (
         <Link

@@ -77,6 +77,7 @@ export default async function MatchesPage() {
                       initialHome={p?.home ?? null}
                       initialAway={p?.away ?? null}
                       userId={profile.id}
+                      linkToDetail
                     />
                   );
                 })}

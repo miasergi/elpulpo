@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Minus, Plus, Check, Lock } from "lucide-react";
+import Link from "next/link";
+import { Minus, Plus, Check, Lock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,13 @@ export function PredictionCard({
   initialHome,
   initialAway,
   userId,
+  linkToDetail = false,
 }: {
   match: MatchWithTeams;
   initialHome: number | null;
   initialAway: number | null;
   userId: string;
+  linkToDetail?: boolean;
 }) {
   const locked = isLocked(match.status, match.kickoff_at);
   const [home, setHome] = useState<number | null>(initialHome);
@@ -141,6 +144,15 @@ export function PredictionCard({
           <span className="text-muted-foreground">Pon tu marcador</span>
         ) : null}
       </div>
+
+      {locked && linkToDetail && (
+        <Link
+          href={`/app/matches/${match.id}`}
+          className="mt-2 flex items-center justify-center gap-1.5 border-t border-border/60 pt-2.5 text-xs font-medium text-pulpo-300"
+        >
+          <Users className="h-3.5 w-3.5" /> Ver predicciones de todos
+        </Link>
+      )}
     </div>
   );
 }

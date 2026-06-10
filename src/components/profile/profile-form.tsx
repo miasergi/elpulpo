@@ -10,10 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PushToggle } from "./push-toggle";
+import { StatsGrid } from "./stats-grid";
+import type { PlayerStats } from "@/lib/stats";
 
 export function ProfileForm({
   profile,
   groupCount,
+  stats,
 }: {
   profile: {
     id: string;
@@ -24,6 +27,7 @@ export function ProfileForm({
     email: string;
   };
   groupCount: number;
+  stats: PlayerStats;
 }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState(profile.display_name);
@@ -56,6 +60,8 @@ export function ProfileForm({
           {groupCount} {groupCount === 1 ? "grupo" : "grupos"}
         </p>
       </div>
+
+      <StatsGrid stats={stats} />
 
       <div className="space-y-4">
         <div>
