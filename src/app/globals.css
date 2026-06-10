@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/*
+  El Pulpo — design system
+  Homenaje a Paul el Pulpo (predictor del Mundial 2010).
+  Dark-first, mobile-first. Octopus purple + electric pitch green.
+*/
+
+:root {
+  /* Brand */
+  --pulpo-50: #f4f0ff;
+  --pulpo-100: #e9e0ff;
+  --pulpo-200: #d4c2ff;
+  --pulpo-300: #b794ff;
+  --pulpo-400: #9b66ff;
+  --pulpo-500: #7c3aed;
+  --pulpo-600: #6d28d9;
+  --pulpo-700: #5b21b6;
+  --pulpo-800: #4c1d95;
+  --pulpo-900: #2e1065;
+
+  /* Electric pitch accent */
+  --pitch-400: #4ade80;
+  --pitch-500: #22c55e;
+  --pitch-600: #16a34a;
+
+  /* Semantic — dark theme by default */
+  --background: #0b0a12;
+  --surface: #14121f;
+  --surface-2: #1c1930;
+  --surface-3: #272442;
+  --border: #2d2a45;
+  --foreground: #f5f3ff;
+  --muted: #9c98b8;
+  --muted-foreground: #79759a;
+
+  --primary: var(--pulpo-500);
+  --primary-foreground: #ffffff;
+  --accent: var(--pitch-500);
+  --accent-foreground: #04140a;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
+
+  --radius: 0.875rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-pulpo-50: var(--pulpo-50);
+  --color-pulpo-100: var(--pulpo-100);
+  --color-pulpo-200: var(--pulpo-200);
+  --color-pulpo-300: var(--pulpo-300);
+  --color-pulpo-400: var(--pulpo-400);
+  --color-pulpo-500: var(--pulpo-500);
+  --color-pulpo-600: var(--pulpo-600);
+  --color-pulpo-700: var(--pulpo-700);
+  --color-pulpo-800: var(--pulpo-800);
+  --color-pulpo-900: var(--pulpo-900);
+
+  --color-pitch-400: var(--pitch-400);
+  --color-pitch-500: var(--pitch-500);
+  --color-pitch-600: var(--pitch-600);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.5rem);
+
+  --font-sans: var(--font-sans);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgba(34, 197, 94, 0.08), transparent 55%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Safe area helpers for installed PWA */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Hide scrollbar but keep scroll (horizontal chips) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes pulpo-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-2deg); }
+}
+.animate-float { animation: pulpo-float 4s ease-in-out infinite; }
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
