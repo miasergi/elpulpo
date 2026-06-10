@@ -27,6 +27,7 @@ interface SdbEvent {
   strAwayTeamBadge: string | null;
   strVenue: string | null;
   strStatus: string | null;
+  strGroup: string | null; // official group letter (A..L) for group-stage events
 }
 
 function mapStatus(s: string | null): MatchStatus {
@@ -143,7 +144,10 @@ export async function fetchWorldCupSportsDB() {
   const fixtures = [
     ...groupEvents.map((ev) => ({
       fixture: norm(ev, ""),
-      stage: groupLabel.get(uf.find(Number(ev.idHomeTeam))) ?? "Grupo ?",
+      // Prefer the official group letter; fall back to derived clustering.
+      stage: ev.strGroup
+        ? `Grupo ${ev.strGroup.trim().toUpperCase()}`
+        : groupLabel.get(uf.find(Number(ev.idHomeTeam))) ?? "Grupo ?",
     })),
     ...koEvents.map((ev) => ({
       fixture: norm(ev, ""),

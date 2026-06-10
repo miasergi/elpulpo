@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PushToggle } from "./push-toggle";
 import { StatsGrid } from "./stats-grid";
+import { AchievementsGrid } from "./achievements-grid";
+import { computeAchievements } from "@/lib/achievements";
 import type { PlayerStats } from "@/lib/stats";
 
 export function ProfileForm({
@@ -62,6 +64,8 @@ export function ProfileForm({
       </div>
 
       <StatsGrid stats={stats} />
+
+      <AchievementsGrid achievements={computeAchievements(stats)} />
 
       <div className="space-y-4">
         <div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2 } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { StandingsList } from "./standings-list";
 import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
-import type { StandingRow } from "@/lib/groups";
+import { ActivityFeed } from "./activity-feed";
+import type { StandingRow, ActivityItem } from "@/lib/groups";
 
-type Tab = "ranking" | "chat" | "info";
+type Tab = "ranking" | "activity" | "chat" | "info";
 
 interface Member {
   role: string;
@@ -25,6 +26,7 @@ export function GroupDetail({
   group,
   standings,
   members,
+  activity,
   currentUserId,
 }: {
   group: {
@@ -41,6 +43,7 @@ export function GroupDetail({
   };
   standings: StandingRow[];
   members: Member[];
+  activity: ActivityItem[];
   currentUserId: string;
 }) {
   const [tab, setTab] = useState<Tab>("ranking");
@@ -67,6 +70,7 @@ export function GroupDetail({
 
   const tabs: { key: Tab; label: string; icon: typeof Trophy }[] = [
     { key: "ranking", label: "Ranking", icon: Trophy },
+    { key: "activity", label: "Actividad", icon: Newspaper },
     { key: "chat", label: "Chat", icon: MessageCircle },
     { key: "info", label: "Info", icon: Info },
   ];
@@ -107,6 +111,8 @@ export function GroupDetail({
 
       <div className="pt-4">
         {tab === "ranking" && <StandingsList rows={standings} currentUserId={currentUserId} />}
+
+        {tab === "activity" && <ActivityFeed items={activity} />}
 
         {tab === "chat" && <GroupChat groupId={group.id} currentUserId={currentUserId} />}
 

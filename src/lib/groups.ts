@@ -83,6 +83,84 @@ export async function getStandings(groupId: string): Promise<StandingRow[]> {
   });
 }
 
+export type ActivityItem =
+  | {
+      type: "result";
+      at: string;
+      home: string;
+      away: string;
+      homeScore: number;
+      awayScore: number;
+      exactHitters: { name: string; avatar_url: string | null }[];
+    }
+  | { type: "join"; at: string; name: string; avatar_url: string | null };
+
+/** Recent group activity: finished results (with who nailed them) + new members. */
+export async function getGroupActivity(groupId: string, competitionId: string): Promise<ActivityItem[]> {
+  const supabase = await createClient();
+
+  const [{ data: members }, { data: matches }] = await Promise.all([
+    supabase
+      .from("group_members")
+      .select("joined_at, profile:profiles(display_name, avatar_url)")
+      .eq("group_id", groupId)
+      .order("joined_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("matches")
+      .select("id, kickoff_at, home_score, away_score, home:teams!matches_home_team_id_fkey(name,short_name), away:teams!matches_away_team_id_fkey(name,short_name)")
+      .eq("competition_id", competitionId)
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+      .order("kickoff_at", { ascending: false })
+      .limit(8),
+  ]);
+
+  const items: ActivityItem[] = [];
+
+  // Member joins
+  for (const m of members ?? []) {
+    const p = Array.isArray(m.profile) ? m.profile[0] : m.profile;
+    items.push({ type: "join", at: m.joined_at, name: p?.display_name ?? "Jugador", avatar_url: p?.avatar_url ?? null });
+  }
+
+  // Results with exact hitters among group members
+  const matchList = matches ?? [];
+  if (matchList.length > 0) {
+    const memberIds = (
+      await supabase.from("group_members").select("user_id").eq("group_id", groupId)
+    ).data?.map((r) => r.user_id) ?? [];
+
+    const { data: preds } = await supabase
+      .from("predictions")
+      .select("match_id, home_score, away_score, author:profiles(display_name, avatar_url)")
+      .in("match_id", matchList.map((m) => m.id))
+      .in("user_id", memberIds);
+
+    for (const m of matchList) {
+      const home = Array.isArray(m.home) ? m.home[0] : m.home;
+      const away = Array.isArray(m.away) ? m.away[0] : m.away;
+      const hitters = (preds ?? [])
+        .filter((p) => p.match_id === m.id && p.home_score === m.home_score && p.away_score === m.away_score)
+        .map((p) => {
+          const a = Array.isArray(p.author) ? p.author[0] : p.author;
+          return { name: a?.display_name ?? "Jugador", avatar_url: a?.avatar_url ?? null };
+        });
+      items.push({
+        type: "result",
+        at: m.kickoff_at,
+        home: home?.short_name ?? home?.name ?? "?",
+        away: away?.short_name ?? away?.name ?? "?",
+        homeScore: m.home_score!,
+        awayScore: m.away_score!,
+        exactHitters: hitters,
+      });
+    }
+  }
+
+  return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
 /** My rank + points inside a group (or null if not yet ranked). */
 export async function getMyStanding(groupId: string, userId: string) {
   const standings = await getStandings(groupId);

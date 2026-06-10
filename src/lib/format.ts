@@ -1,6 +1,10 @@
-import { format, isToday, isTomorrow } from "date-fns";
+import { format, isToday, isTomorrow, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import type { MatchStatus } from "@/lib/database.types";
+
+export function timeAgo(iso: string) {
+  return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: es });
+}
 
 export function kickoffLabel(iso: string) {
   const d = new Date(iso);
