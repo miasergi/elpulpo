@@ -5,6 +5,7 @@ import {
   WORLD_CUP_SEASON,
 } from "@/lib/api-football";
 import { fetchWorldCupSportsDB } from "@/lib/sports-db";
+import { translateTeam } from "@/lib/teams-es";
 
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
@@ -40,12 +41,16 @@ export async function syncWorldCupSportsDB() {
     teamsByExt.set(f.home.external_id, { name: f.home.name, flag_url: f.home.flag_url });
     teamsByExt.set(f.away.external_id, { name: f.away.name, flag_url: f.away.flag_url });
   }
-  const teamRows = [...teamsByExt.entries()].map(([external_id, t]) => ({
-    external_id,
-    name: t.name,
-    short_name: t.name,
-    flag_url: t.flag_url,
-  }));
+  const teamRows = [...teamsByExt.entries()].map(([external_id, t]) => {
+    const tr = translateTeam(t.name);
+    return {
+      external_id,
+      name: tr.name,
+      short_name: tr.name,
+      code: tr.code,
+      flag_url: t.flag_url,
+    };
+  });
   await supabase.from("teams").upsert(teamRows, { onConflict: "external_id" });
 
   const { data: teams } = await supabase
@@ -54,22 +59,46 @@ export async function syncWorldCupSportsDB() {
     .in("external_id", [...teamsByExt.keys()]);
   const idByExt = new Map((teams ?? []).map((t: { external_id: number | null; id: string }) => [t.external_id, t.id]));
 
-  // Upsert matches by external_id.
-  const matchRows = fixtures.map((f) => ({
-    external_id: f.external_id,
-    competition_id: competition.id,
-    home_team_id: idByExt.get(f.home.external_id) ?? null,
-    away_team_id: idByExt.get(f.away.external_id) ?? null,
-    kickoff_at: f.kickoff_at,
-    status: f.status,
-    home_score: f.home_score,
-    away_score: f.away_score,
-    stage: f.stage,
-    round: String(f.round),
-    venue: f.venue,
-    updated_at: new Date().toISOString(),
-  }));
-  await supabase.from("matches").upsert(matchRows, { onConflict: "external_id" });
+  // Change-aware upsert: only write rows that are new or actually changed,
+  // so `updated_at` reliably marks real updates (used for result notifications).
+  const { data: existing } = await supabase
+    .from("matches")
+    .select("external_id, status, home_score, away_score, kickoff_at, stage")
+    .eq("competition_id", competition.id);
+  const prev = new Map((existing ?? []).map((m) => [m.external_id, m]));
+
+  const now = new Date().toISOString();
+  const matchRows = fixtures
+    .map((f) => {
+      const p = prev.get(f.external_id);
+      const changed =
+        !p ||
+        p.status !== f.status ||
+        p.home_score !== f.home_score ||
+        p.away_score !== f.away_score ||
+        p.stage !== f.stage ||
+        new Date(p.kickoff_at).getTime() !== new Date(f.kickoff_at).getTime();
+      if (!changed) return null;
+      return {
+        external_id: f.external_id,
+        competition_id: competition.id,
+        home_team_id: idByExt.get(f.home.external_id) ?? null,
+        away_team_id: idByExt.get(f.away.external_id) ?? null,
+        kickoff_at: f.kickoff_at,
+        status: f.status,
+        home_score: f.home_score,
+        away_score: f.away_score,
+        stage: f.stage,
+        round: String(f.round),
+        venue: f.venue,
+        updated_at: now,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (matchRows.length > 0) {
+    await supabase.from("matches").upsert(matchRows, { onConflict: "external_id" });
+  }
 
   // Remove leftover demo data (rows without an external_id).
   await supabase.from("matches").delete().eq("competition_id", competition.id).is("external_id", null);
