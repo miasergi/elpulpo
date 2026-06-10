@@ -18,3 +18,9 @@ jobs:
           curl -fsS -X GET "https://elpulpo.vercel.app/api/sync" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             && echo "" && echo "Sync OK"
+
+      - name: Send kickoff reminders
+        run: |
+          curl -fsS -X GET "https://elpulpo.vercel.app/api/notify" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            && echo "" && echo "Notify OK"
