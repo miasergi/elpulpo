@@ -45,6 +45,7 @@ export function WorldCupHero({
       href="/app/matches"
       className="relative mt-6 block overflow-hidden rounded-xl border border-pulpo-500/30 bg-gradient-to-br from-pulpo-500/20 via-surface/80 to-primary/15 p-4"
     >
+      <div className="bg-wc26-bar absolute inset-x-0 top-0 h-1" />
       <Trophy className="absolute -right-4 -top-4 h-24 w-24 rotate-12 text-pulpo-500/15" />
 
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-pulpo-300">

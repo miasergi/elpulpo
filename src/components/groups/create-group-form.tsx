@@ -134,7 +134,7 @@ export function CreateGroupForm({
             {([
               ["exact", "Marcador exacto", Target],
               ["diff", "Diferencia de goles", Scale],
-              ["result", "Ganador (1X2)", CircleCheck],
+              ["result", "Acertar (1X2)", CircleCheck],
             ] as const).map(([key, label, Icon]) => (
               <div key={key} className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm">

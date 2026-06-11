@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Trophy, ChevronRight, CalendarX2, Repeat } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getActiveGroup, getMatches, getMyPredictions } from "@/lib/queries";
+import { getActiveCompetition, getActiveGroup, getMatches, getMyPredictions, getMyMembership } from "@/lib/queries";
 import { MatchesBrowser } from "@/components/match/matches-browser";
 import { PageHeader } from "@/components/app/page-header";
 import { GroupIcon } from "@/components/groups/group-icon";
@@ -23,16 +23,19 @@ export default async function MatchesPage() {
   }
 
   const group = await getActiveGroup(profile.active_group_id);
-  const [matches, predictions] = await Promise.all([
+  const [matches, predictions, membership] = await Promise.all([
     getMatches(competition.id),
     getMyPredictions(profile.id, group?.id ?? null),
+    getMyMembership(profile.id, group?.id ?? null),
   ]);
 
   return (
     <div className="px-5">
       {/* Non-sticky header so the filter chips can stick to the top. */}
       <header className="pb-1 pt-4">
-        <h1 className="text-2xl font-bold tracking-tight">Partidos</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">
+          <span className="text-brand-gradient">Partidos</span>
+        </h1>
         <p className="text-sm text-muted">{competition.name}</p>
       </header>
 
@@ -84,6 +87,12 @@ export default async function MatchesPage() {
           predictions={Object.fromEntries(predictions)}
           userId={profile.id}
           groupId={group?.id ?? null}
+          scoring={
+            group
+              ? { exact: group.pts_exact, diff: group.pts_goal_diff, result: group.pts_result }
+              : null
+          }
+          underdogTeamId={membership?.underdog_team_id ?? null}
           now={new Date().toISOString()}
         />
       )}

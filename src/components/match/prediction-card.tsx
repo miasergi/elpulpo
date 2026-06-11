@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, Check, Lock, Users, Target } from "lucide-react";
+import { Minus, Plus, Check, Lock, Users, Target, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { playTick } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { predictionPoints, matchMultiplier, type ScoringRules } from "@/lib/scoring";
 import { TeamFlag, type TeamLite } from "./team-flag";
 import { kickoffLabel, isLocked, statusBadge } from "@/lib/format";
 import type { MatchStatus } from "@/lib/database.types";
@@ -31,6 +32,8 @@ export function PredictionCard({
   initialAway,
   userId,
   groupId,
+  scoring = null,
+  underdogTeamId = null,
   linkToDetail = false,
 }: {
   match: MatchWithTeams;
@@ -39,6 +42,10 @@ export function PredictionCard({
   userId: string;
   /** Group the prediction belongs to; null = user has no active group yet. */
   groupId: string | null;
+  /** Active group's scoring rules; enables the points display. */
+  scoring?: ScoringRules | null;
+  /** The user's underdog pick in this group (its matches score double). */
+  underdogTeamId?: string | null;
   linkToDetail?: boolean;
 }) {
   const locked = isLocked(match.status, match.kickoff_at);
@@ -98,25 +105,51 @@ export function PredictionCard({
   }, [home, away]);
 
   const predicted = home !== null && away !== null;
+  const hasResult = match.home_score !== null && match.away_score !== null;
+
+  // x2 multiplier (España / underdog pick) and points earned.
+  const mult = matchMultiplier(match.home_team, match.away_team, underdogTeamId);
+  const isDoubleTeam = match.home_team?.double_points || match.away_team?.double_points;
+  const basePts =
+    scoring && predicted && locked && hasResult
+      ? predictionPoints(home!, away!, match.home_score, match.away_score, scoring)
+      : null;
+  const earned = basePts !== null ? basePts * mult : null;
   const hitExact =
-    locked && match.home_score === home && match.away_score === away && predicted;
+    locked && hasResult && predicted && match.home_score === home && match.away_score === away;
 
   return (
     <div
       className={cn(
         "rounded-lg border bg-surface/70 p-4 transition-colors",
-        hitExact ? "border-pitch-500/60" : "border-border"
+        hitExact
+          ? "border-pitch-500/70 bg-pitch-500/5"
+          : earned !== null && earned > 0
+            ? "border-pulpo-500/50"
+            : !locked && predicted
+              ? "border-pitch-500/40"
+              : "border-border"
       )}
     >
       <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="truncate">{match.stage ?? "Partido"}</span>
-        <span className="flex items-center gap-2">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate rounded-full bg-primary/10 px-2 py-0.5 font-medium text-pulpo-300">
+            {match.stage ?? "Partido"}
+          </span>
+          {mult > 1 && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+              <Zap className="h-3 w-3" /> x2 {isDoubleTeam ? "España" : "tu tapado"}
+            </span>
+          )}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
           {badge ? (
             <Badge variant={badge.variant}>{badge.label}</Badge>
           ) : (
             <span>{kickoffLabel(match.kickoff_at)}</span>
           )}
           {locked && <Lock className="h-3 w-3" />}
+          {!locked && predicted && <Check className="h-3.5 w-3.5 text-pitch-400" />}
         </span>
       </div>
 
@@ -142,16 +175,30 @@ export function PredictionCard({
         <TeamSide team={match.away_team} align="right" />
       </div>
 
-      {/* Footer: actual result / save state */}
+      {/* Footer: actual result / points / save state */}
       <div className="mt-3 flex h-5 items-center justify-center text-xs">
-        {locked && match.home_score !== null ? (
-          <span className="text-muted">
-            Resultado real:{" "}
-            <span className="font-semibold text-foreground">
-              {match.home_score} - {match.away_score}
+        {locked && hasResult ? (
+          <span className="flex items-center gap-2 text-muted">
+            <span>
+              Resultado:{" "}
+              <span className="font-semibold text-foreground">
+                {match.home_score} - {match.away_score}
+              </span>
             </span>
-            {hitExact && (
-              <span className="ml-2 inline-flex items-center gap-1 text-pitch-400">
+            {earned !== null && (
+              <span
+                className={cn(
+                  "flex items-center gap-1 rounded-full px-2 py-0.5 font-bold",
+                  earned > 0 ? "bg-pitch-500/15 text-pitch-400" : "bg-surface-3 text-muted-foreground"
+                )}
+              >
+                {hitExact && <Target className="h-3.5 w-3.5" />}
+                {earned > 0 ? `+${earned} pts` : "0 pts"}
+                {match.status === "live" && " (de momento)"}
+              </span>
+            )}
+            {earned === null && hitExact && (
+              <span className="flex items-center gap-1 text-pitch-400">
                 <Target className="h-3.5 w-3.5" /> ¡Exacto!
               </span>
             )}
@@ -168,9 +215,13 @@ export function PredictionCard({
           <span className="flex items-center gap-1 text-pitch-400">
             <Check className="h-3.5 w-3.5" /> Guardado
           </span>
-        ) : !predicted ? (
+        ) : predicted ? (
+          <span className="flex items-center gap-1 text-pitch-400/80">
+            <Check className="h-3.5 w-3.5" /> Predicción guardada
+          </span>
+        ) : (
           <span className="text-muted-foreground">Pon tu marcador</span>
-        ) : null}
+        )}
       </div>
 
       {locked && linkToDetail && (
@@ -186,13 +237,23 @@ export function PredictionCard({
 }
 
 function TeamSide({ team, align = "left" }: { team: TeamLite | null; align?: "left" | "right" }) {
-  return (
-    <div className={cn("flex min-w-0 flex-1 items-center gap-2", align === "right" && "flex-row-reverse")}>
+  const inner = (
+    <>
       <TeamFlag team={team} size={36} />
       <span className={cn("truncate text-sm font-medium", align === "right" && "text-right")}>
         {team?.short_name ?? team?.name ?? "Por definir"}
       </span>
-    </div>
+    </>
+  );
+  const cls = cn(
+    "flex min-w-0 flex-1 items-center gap-2",
+    align === "right" && "flex-row-reverse"
+  );
+  if (!team) return <div className={cls}>{inner}</div>;
+  return (
+    <Link href={`/app/teams/${team.id}`} className={cls} title={`Ver plantilla de ${team.name}`}>
+      {inner}
+    </Link>
   );
 }
 

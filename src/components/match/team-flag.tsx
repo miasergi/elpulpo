@@ -9,6 +9,8 @@ export interface TeamLite {
   short_name?: string | null;
   code?: string | null;
   flag_url?: string | null;
+  double_points?: boolean;
+  is_underdog?: boolean;
 }
 
 /** TheSportsDB sirve variantes redimensionadas añadiendo /small (≈250px) a la URL. */

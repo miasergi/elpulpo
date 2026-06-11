@@ -1,3 +1,23 @@
+export interface ScoringRules {
+  exact: number;
+  diff: number;
+  result: number;
+}
+
+/** x2 when the match involves a double-points team (España) or the player's
+ *  underdog pick. TS mirror of the multiplier in group_standings (0005). */
+export function matchMultiplier(
+  home: { id: string; double_points?: boolean } | null,
+  away: { id: string; double_points?: boolean } | null,
+  underdogTeamId: string | null
+): number {
+  const doubles =
+    home?.double_points ||
+    away?.double_points ||
+    (underdogTeamId != null && (home?.id === underdogTeamId || away?.id === underdogTeamId));
+  return doubles ? 2 : 1;
+}
+
 /** TS mirror of the SQL prediction_points() function (migration 0001). */
 export function predictionPoints(
   ph: number,

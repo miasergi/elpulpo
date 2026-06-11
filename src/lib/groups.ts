@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMatches, type MatchRow } from "@/lib/queries";
 import { isLocked } from "@/lib/format";
-import { predictionPoints } from "@/lib/scoring";
+import { predictionPoints, matchMultiplier } from "@/lib/scoring";
 
 export interface StandingRow {
   user_id: string;
@@ -187,7 +187,7 @@ export async function getGroupMatchboard(
     .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime())
     .slice(0, 10);
 
-  const [{ data: who, error: whoError }, { data: preds }] = await Promise.all([
+  const [{ data: who, error: whoError }, { data: preds }, { data: memberRows }] = await Promise.all([
     open.length > 0
       ? supabase.rpc("predicted_user_ids", { gid: group.id, mids: open.map((m) => m.id) })
       : Promise.resolve({ data: [], error: null }),
@@ -199,7 +199,9 @@ export async function getGroupMatchboard(
           .in("match_id", locked.map((m) => m.id))
           .in("user_id", memberIds)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from("group_members").select("user_id, underdog_team_id").eq("group_id", group.id),
   ]);
+  const underdogOf = new Map((memberRows ?? []).map((r) => [r.user_id, r.underdog_team_id]));
 
   const memberSet = new Set(memberIds);
   const whoByMatch = new Map<string, string[]>();
@@ -219,7 +221,9 @@ export async function getGroupMatchboard(
       user_id: p.user_id,
       home: p.home_score,
       away: p.away_score,
-      points: predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts),
+      points:
+        predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
+        matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null),
     });
   }
 

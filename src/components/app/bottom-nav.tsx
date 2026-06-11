@@ -9,7 +9,7 @@ const items = [
   { href: "/app", label: "Inicio", icon: Home, exact: true },
   { href: "/app/matches", label: "Partidos", icon: CalendarDays },
   { href: "/app/tournament", label: "Mundial", icon: Trophy },
-  { href: "/app/groups", label: "Grupos", icon: Users },
+  { href: "/app/groups", label: "Grupo", icon: Users },
   { href: "/app/profile", label: "Perfil", icon: User },
 ];
 

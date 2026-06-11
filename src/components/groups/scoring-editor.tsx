@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 const FIELDS: { key: "pts_exact" | "pts_goal_diff" | "pts_result"; label: string; Icon: LucideIcon }[] = [
   { key: "pts_exact", label: "Marcador exacto", Icon: Target },
   { key: "pts_goal_diff", label: "Diferencia de goles", Icon: Scale },
-  { key: "pts_result", label: "Ganador (1X2)", Icon: CircleCheck },
+  { key: "pts_result", label: "Acertar (1X2)", Icon: CircleCheck },
 ];
 
 /** Group scoring rules; the owner can edit them in place. */

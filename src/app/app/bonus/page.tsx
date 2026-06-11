@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
-import { getActiveCompetition, getActiveGroup } from "@/lib/queries";
+import { getActiveCompetition, getActiveGroup, getMatches, getMyMembership } from "@/lib/queries";
 import { getBonusMarkets, getCompetitionTeams } from "@/lib/bonus";
 import { BackHeader } from "@/components/app/back-header";
 import { BonusForm } from "@/components/bonus/bonus-form";
+import { UnderdogPicker } from "@/components/bonus/underdog-picker";
 import { GroupIcon } from "@/components/groups/group-icon";
 
 export const dynamic = "force-dynamic";
@@ -22,10 +23,14 @@ export default async function BonusPage() {
   }
 
   const group = await getActiveGroup(profile.active_group_id);
-  const [{ markets, answers }, teams] = await Promise.all([
+  const [{ markets, answers }, teams, membership, matches] = await Promise.all([
     getBonusMarkets(competition.id, profile.id, group?.id ?? null),
     getCompetitionTeams(competition.id),
+    getMyMembership(profile.id, group?.id ?? null),
+    getMatches(competition.id),
   ]);
+  const firstKickoff = matches[0]?.kickoff_at;
+  const tournamentStarted = !!firstKickoff && new Date(firstKickoff) <= new Date();
 
   if (!group) {
     return (
@@ -55,6 +60,16 @@ export default async function BonusPage() {
         <GroupIcon name={group.icon} size={16} color={group.color} />
         Respondiendo para <span className="font-semibold text-foreground">{group.name}</span>
       </Link>
+
+      <div className="mb-4">
+        <UnderdogPicker
+          teams={teams.filter((t) => t.is_underdog)}
+          groupId={group.id}
+          initialPick={membership?.underdog_team_id ?? null}
+          closed={tournamentStarted}
+        />
+      </div>
+
       {markets.length === 0 ? (
         <p className="mt-10 text-center text-sm text-muted">Todavía no hay preguntas bonus.</p>
       ) : (

@@ -178,3 +178,45 @@ export async function fetchWorldCupSportsDB() {
 
   return fixtures.map(({ fixture, stage }) => ({ ...fixture, stage }));
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Squad lookup (free tier returns up to ~10 featured players per team).
+// ─────────────────────────────────────────────────────────────────────
+export interface SdbPlayer {
+  id: string;
+  name: string;
+  position: string | null;
+  club: string | null;
+  number: string | null;
+  born: string | null;
+  cutout: string | null;
+  thumb: string | null;
+}
+
+interface SdbPlayerRaw {
+  idPlayer: string;
+  strPlayer: string;
+  strPosition: string | null;
+  strTeam: string | null;
+  strNumber: string | null;
+  dateBorn: string | null;
+  strCutout: string | null;
+  strThumb: string | null;
+}
+
+export async function getTeamPlayers(externalTeamId: number): Promise<SdbPlayer[]> {
+  const url = `https://www.thesportsdb.com/api/v1/json/${key()}/lookup_all_players.php?id=${externalTeamId}`;
+  const res = await fetch(url, { next: { revalidate: 86400 } });
+  if (!res.ok) return [];
+  const json = (await res.json()) as { player: SdbPlayerRaw[] | null };
+  return (json.player ?? []).map((p) => ({
+    id: p.idPlayer,
+    name: p.strPlayer,
+    position: p.strPosition,
+    club: p.strTeam,
+    number: p.strNumber,
+    born: p.dateBorn,
+    cutout: p.strCutout,
+    thumb: p.strThumb,
+  }));
+}

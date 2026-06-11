@@ -19,11 +19,22 @@ export async function getPlayerStats(userId: string, groupId: string | null): Pr
     return { played: 0, exacts: 0, results: 0, goalDiffs: 0, accuracy: 0, points: 0, bestStreak: 0, currentStreak: 0 };
   }
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("predictions")
-    .select("home_score, away_score, match:matches(kickoff_at, status, home_score, away_score)")
-    .eq("user_id", userId)
-    .eq("group_id", groupId);
+  const [{ data }, { data: membership }] = await Promise.all([
+    supabase
+      .from("predictions")
+      .select(
+        "home_score, away_score, match:matches(kickoff_at, status, home_score, away_score, home_team_id, away_team_id, home:teams!matches_home_team_id_fkey(double_points), away:teams!matches_away_team_id_fkey(double_points))"
+      )
+      .eq("user_id", userId)
+      .eq("group_id", groupId),
+    supabase
+      .from("group_members")
+      .select("underdog_team_id")
+      .eq("group_id", groupId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+  const underdog = membership?.underdog_team_id ?? null;
 
   const rows = (data ?? [])
     .map((p) => {
@@ -39,13 +50,21 @@ export async function getPlayerStats(userId: string, groupId: string | null): Pr
   for (const { ph, pa, m } of rows) {
     const ah = m!.home_score!;
     const aa = m!.away_score!;
+    const one = (v: unknown) => (Array.isArray(v) ? v[0] ?? null : v ?? null);
+    const home = one(m!.home) as { double_points?: boolean } | null;
+    const away = one(m!.away) as { double_points?: boolean } | null;
+    const mult =
+      home?.double_points || away?.double_points ||
+      (underdog && (m!.home_team_id === underdog || m!.away_team_id === underdog))
+        ? 2
+        : 1;
     const sameResult = Math.sign(ph - pa) === Math.sign(ah - aa);
     if (ph === ah && pa === aa) {
-      exacts++; results++; points += DEFAULTS.exact;
+      exacts++; results++; points += DEFAULTS.exact * mult;
     } else if (sameResult && ph - pa === ah - aa) {
-      goalDiffs++; results++; points += DEFAULTS.diff;
+      goalDiffs++; results++; points += DEFAULTS.diff * mult;
     } else if (sameResult) {
-      results++; points += DEFAULTS.result;
+      results++; points += DEFAULTS.result * mult;
     }
     if (sameResult) {
       run++;

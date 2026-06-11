@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { MatchWithTeams } from "@/components/match/prediction-card";
 
 const TEAM_SELECT =
-  "home_team:teams!matches_home_team_id_fkey(id,name,short_name,code,flag_url)," +
-  "away_team:teams!matches_away_team_id_fkey(id,name,short_name,code,flag_url)";
+  "home_team:teams!matches_home_team_id_fkey(id,name,short_name,code,flag_url,double_points,is_underdog)," +
+  "away_team:teams!matches_away_team_id_fkey(id,name,short_name,code,flag_url,double_points,is_underdog)";
 
 /** The active competition the app is centred on (World Cup 2026 to start).
  *  Per-request memoised: layout + page share one query. */
@@ -50,6 +50,19 @@ export interface MatchPrediction {
   display_name: string;
   avatar_url: string | null;
 }
+
+/** The user's membership row in a group (role + underdog pick). */
+export const getMyMembership = cache(async (userId: string, groupId: string | null) => {
+  if (!groupId) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("group_members")
+    .select("role, underdog_team_id")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data;
+});
 
 /** The user's active group (Biwenger-style context all predictions live in). */
 export const getActiveGroup = cache(async (activeGroupId: string | null) => {

@@ -165,3 +165,8 @@ body::before {
   background-clip: text;
   color: transparent;
 }
+
+/* WC26-style tri-colour accent bar (host nations' vibe, brand palette) */
+.bg-wc26-bar {
+  background: linear-gradient(90deg, var(--orange-500) 0 33%, var(--pink-500) 33% 66%, var(--teal-400) 66% 100%);
+}

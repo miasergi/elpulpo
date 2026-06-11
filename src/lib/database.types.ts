@@ -49,6 +49,8 @@ export interface Database {
           short_name: string | null;
           code: string | null;
           flag_url: string | null;
+          double_points: boolean;
+          is_underdog: boolean;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["teams"]["Row"]> & { name: string };
@@ -103,6 +105,7 @@ export interface Database {
           user_id: string;
           role: string;
           nickname: string | null;
+          underdog_team_id: string | null;
           joined_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["group_members"]["Row"]> & { group_id: string; user_id: string };
@@ -204,6 +207,7 @@ export interface Database {
         Args: { gid: string; mids: string[] };
         Returns: { match_id: string; user_id: string }[];
       };
+      set_underdog_pick: { Args: { gid: string; tid: string | null }; Returns: undefined };
       create_group: {
         Args: {
           p_name: string;

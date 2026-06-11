@@ -5,6 +5,7 @@ import { CalendarCheck2, CalendarDays, CircleAlert, History, ListChecks } from "
 import { cn } from "@/lib/utils";
 import { PredictionCard, type MatchWithTeams } from "./prediction-card";
 import { dayHeading, dayKey } from "@/lib/format";
+import type { ScoringRules } from "@/lib/scoring";
 
 type Filter = "proximos" | "hoy" | "sin-predecir" | "resultados" | "todos";
 
@@ -18,12 +19,16 @@ export function MatchesBrowser({
   predictions,
   userId,
   groupId,
+  scoring,
+  underdogTeamId,
   now,
 }: {
   matches: MatchWithTeams[];
   predictions: Record<string, PredictionLite>;
   userId: string;
   groupId: string | null;
+  scoring: ScoringRules | null;
+  underdogTeamId: string | null;
   /** Server timestamp, reused on the client so SSR and hydration agree. */
   now: string;
 }) {
@@ -132,6 +137,8 @@ export function MatchesBrowser({
                       initialAway={p?.away ?? null}
                       userId={userId}
                       groupId={groupId}
+                      scoring={scoring}
+                      underdogTeamId={underdogTeamId}
                       linkToDetail
                     />
                   );

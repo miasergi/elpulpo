@@ -26,6 +26,7 @@ export interface CompetitionTeam {
   name: string;
   code: string | null;
   flag_url: string | null;
+  is_underdog?: boolean;
   /** Group letter (A..L) from the group-stage fixtures, if known. */
   group: string | null;
 }
@@ -35,7 +36,7 @@ export async function getCompetitionTeams(competitionId: string): Promise<Compet
   // Teams that appear in this competition's fixtures, with their group letter.
   const { data } = await supabase
     .from("matches")
-    .select("stage, home:teams!matches_home_team_id_fkey(id,name,code,flag_url),away:teams!matches_away_team_id_fkey(id,name,code,flag_url)")
+    .select("stage, home:teams!matches_home_team_id_fkey(id,name,code,flag_url,is_underdog),away:teams!matches_away_team_id_fkey(id,name,code,flag_url,is_underdog)")
     .eq("competition_id", competitionId);
 
   const map = new Map<string, CompetitionTeam>();
