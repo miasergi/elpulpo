@@ -27,6 +27,9 @@ async function ensureBonusMarkets(
   competitionId: string,
   closesAt: string | null
 ) {
+  // Refresh label/points/closes_at on every sync so the close time tracks the
+  // real opening kickoff. Resolution fields (resolved, correct_team_id,
+  // correct_text) aren't in the payload, so the admin's results are preserved.
   await supabase.from("bonus_markets").upsert(
     DEFAULT_BONUS_MARKETS.map(([key, label, kind, points]) => ({
       competition_id: competitionId,
@@ -36,7 +39,7 @@ async function ensureBonusMarkets(
       points,
       closes_at: closesAt,
     })),
-    { onConflict: "competition_id,key", ignoreDuplicates: true }
+    { onConflict: "competition_id,key", ignoreDuplicates: false }
   );
 }
 
