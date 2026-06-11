@@ -1,7 +1,7 @@
 // Official squads from the (undocumented but public) FIFA API.
 // World Cup: idCompetition=17, season 2026 = 285023.
-// Note: FIFA's national-kit player photos sit behind an authenticated Gameday
-// API, so we don't store photos — squad cards render initials avatars.
+// National-kit player photos come from PlayerPicture.PictureUrl (public
+// digitalhub.fifa.com transform URLs) — ~98% of squad players have one.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const FIFA_API = "https://api.fifa.com/api/v3";
@@ -20,7 +20,9 @@ interface FifaSquadPlayer {
   PlayerName: { Locale: string; Description: string }[];
   JerseyNum: number | null;
   Position: number | null;
+  RealPosition: number | null;
   BirthDate: string | null;
+  PlayerPicture: { PictureUrl: string | null } | null;
 }
 
 async function fifaJson<T>(path: string): Promise<T | null> {
@@ -88,21 +90,24 @@ export async function syncSquadsFIFA(supabase: SupabaseClient): Promise<SquadSyn
 
     const rows = players.map((p) => {
       const name = tidyName(p.PlayerName?.[0]?.Description ?? "");
+      const posIdx = p.RealPosition ?? p.Position ?? 3;
       return {
         team_id: team.id,
         external_id: p.IdPlayer,
         name,
         number: p.JerseyNum,
-        position: POSITION_ES[p.Position ?? 3] ?? null,
+        position: POSITION_ES[posIdx] ?? null,
         birth_date: p.BirthDate ? p.BirthDate.slice(0, 10) : null,
-        photo_url: null,
+        photo_url: p.PlayerPicture?.PictureUrl ?? null,
         updated_at: new Date().toISOString(),
       };
     });
 
-    // Replace the roster atomically enough for our needs.
-    await supabase.from("players").delete().eq("team_id", team.id);
-    const { error } = await supabase.from("players").insert(rows);
+    // Upsert by (team_id, external_id) so enrichment columns (e.g. club) on
+    // existing rows are preserved across re-syncs.
+    const { error } = await supabase
+      .from("players")
+      .upsert(rows, { onConflict: "team_id,external_id" });
     if (error) {
       missing.push(`${team.name} (${error.message})`);
       continue;

@@ -1,26 +1,19 @@
+"use client";
+
+import { useState } from "react";
 import { getInitials } from "@/lib/utils";
-import type { SdbPlayer } from "@/lib/sports-db";
+import { TeamFlag, type TeamLite } from "@/components/match/team-flag";
 
-const POSITION_ES: [RegExp, string][] = [
-  [/portero|arquero|goalkeeper/i, "Portero"],
-  [/central|centre-back|center-back/i, "Central"],
-  [/lateral izq|left-back/i, "Lateral izq."],
-  [/lateral der|right-back/i, "Lateral der."],
-  [/pivote|defensive midfield/i, "Pivote"],
-  [/mediapunta|attacking midfield/i, "Mediapunta"],
-  [/mediocentro|central midfield/i, "Mediocentro"],
-  [/extremo izq|left midfield|left wing/i, "Extremo izq."],
-  [/extremo der|right midfield|right wing/i, "Extremo der."],
-  [/delantero|centre-forward|striker/i, "Delantero"],
-  [/defensa|back|defen/i, "Defensa"],
-  [/centrocampista|midfield/i, "Centrocampista"],
-  [/forward/i, "Delantero"],
-];
-
-function positionEs(pos: string | null) {
-  if (!pos) return null;
-  for (const [re, es] of POSITION_ES) if (re.test(pos)) return es;
-  return pos;
+export interface SquadPlayer {
+  id: string;
+  name: string;
+  number: string | null;
+  position: string | null;
+  positionDetail: string | null;
+  born: string | null;
+  photo: string | null;
+  club: string | null;
+  clubBadge: string | null;
 }
 
 function age(born: string | null) {
@@ -29,26 +22,48 @@ function age(born: string | null) {
   return Number.isFinite(years) && years > 13 && years < 50 ? years : null;
 }
 
-/** Compact squad list row: number · initials · name + meta · club. */
-export function PlayerRow({ player }: { player: SdbPlayer }) {
+/** Compact squad list row: number · photo/flag/initials · name + meta · club. */
+export function PlayerRow({ player, teamFlag }: { player: SquadPlayer; teamFlag: TeamLite }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const years = age(player.born);
-  const meta = [positionEs(player.position), years ? `${years} años` : null].filter(Boolean).join(" · ");
+  const position = player.positionDetail || player.position;
+  const meta = [position, years ? `${years} años` : null].filter(Boolean).join(" · ");
 
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
       <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
         {player.number ?? "–"}
       </span>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pulpo-500 to-pulpo-700 text-xs font-bold text-white">
-        {getInitials(player.name)}
+
+      {/* Photo → country flag → initials */}
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-3">
+        {player.photo && !photoFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={player.photo}
+            alt={player.name}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover object-top"
+            onError={() => setPhotoFailed(true)}
+          />
+        ) : (
+          <TeamFlag team={teamFlag} size={40} />
+        )}
       </span>
+
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{player.name}</p>
         {meta && <p className="truncate text-[11px] text-muted-foreground">{meta}</p>}
       </div>
+
       {player.club && (
-        <span className="max-w-[40%] shrink-0 truncate text-right text-[11px] text-muted">
-          {player.club}
+        <span className="flex max-w-[42%] shrink-0 items-center justify-end gap-1.5">
+          <span className="truncate text-right text-[11px] text-muted">{player.club}</span>
+          {player.clubBadge && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={player.clubBadge} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
+          )}
         </span>
       )}
     </div>

@@ -2,22 +2,21 @@ import { notFound } from "next/navigation";
 import { Zap, Shirt } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getTeamPlayers, type SdbPlayer } from "@/lib/sports-db";
 import { BackHeader } from "@/components/app/back-header";
 import { TeamFlag } from "@/components/match/team-flag";
-import { PlayerRow } from "@/components/teams/player-row";
+import { PlayerRow, type SquadPlayer } from "@/components/teams/player-row";
 
 export const dynamic = "force-dynamic";
 
 const BUCKETS = [
   { key: "gk", label: "Porteros", test: /portero|arquero|goalkeeper/i },
-  { key: "def", label: "Defensas", test: /defensa|back|defen/i },
-  { key: "mid", label: "Centrocampistas", test: /centrocampista|midfield/i },
+  { key: "def", label: "Defensas", test: /defensa|defensor|back|defen/i },
+  { key: "mid", label: "Centrocampistas", test: /centrocampista|mediocampista|medio|midfield/i },
   { key: "fwd", label: "Delanteros", test: /delantero|forward|wing|striker|attack/i },
 ] as const;
 
-function bucketOf(p: { position: string | null }) {
-  const pos = p.position ?? "";
+function bucketOf(p: SquadPlayer) {
+  const pos = `${p.position ?? ""} ${p.positionDetail ?? ""}`;
   for (const b of BUCKETS) if (b.test.test(pos)) return b.key;
   return "fwd";
 }
@@ -34,29 +33,23 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     .maybeSingle();
   if (!team) notFound();
 
-  // Official FIFA roster from our DB; falls back to TheSportsDB's featured
-  // players if the squad hasn't been synced yet.
   const { data: dbPlayers } = await supabase
     .from("players")
-    .select("id,name,number,position,birth_date,club")
+    .select("id,name,number,position,position_detail,birth_date,photo_url,club,club_badge")
     .eq("team_id", team.id)
     .order("number", { ascending: true, nullsFirst: false });
 
-  const players: SdbPlayer[] =
-    dbPlayers && dbPlayers.length > 0
-      ? dbPlayers.map((p) => ({
-          id: p.id,
-          name: p.name,
-          position: p.position,
-          club: p.club,
-          number: p.number != null ? String(p.number) : null,
-          born: p.birth_date,
-          cutout: null,
-          thumb: null,
-        }))
-      : team.external_id
-        ? await getTeamPlayers(team.external_id)
-        : [];
+  const players: SquadPlayer[] = (dbPlayers ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    number: p.number != null ? String(p.number) : null,
+    position: p.position,
+    positionDetail: p.position_detail,
+    born: p.birth_date,
+    photo: p.photo_url,
+    club: p.club,
+    clubBadge: p.club_badge,
+  }));
 
   const grouped = BUCKETS.map((b) => ({
     ...b,
@@ -107,15 +100,13 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
               <h2 className="mb-1.5 text-sm font-semibold text-muted">{b.label}</h2>
               <div className="overflow-hidden rounded-lg border border-border bg-surface/50 divide-y divide-border/60">
                 {b.players.map((p) => (
-                  <PlayerRow key={p.id} player={p} />
+                  <PlayerRow key={p.id} player={p} teamFlag={team} />
                 ))}
               </div>
             </section>
           ))}
           <p className="text-center text-[11px] text-muted-foreground">
-            {dbPlayers && dbPlayers.length > 0
-              ? "Convocatoria oficial FIFA"
-              : "Jugadores destacados · datos de TheSportsDB"}
+            Convocatoria oficial · fotos FIFA
           </p>
         </div>
       )}

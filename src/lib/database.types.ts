@@ -111,6 +111,8 @@ export interface Database {
           birth_date: string | null;
           photo_url: string | null;
           club: string | null;
+          club_badge: string | null;
+          position_detail: string | null;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["players"]["Row"]> & { team_id: string; external_id: string; name: string };
