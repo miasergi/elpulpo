@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, Target, Scale, CircleCheck } from "lucide-react";
+import { ChevronDown, Target, CircleCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateInviteCode, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -133,8 +133,7 @@ export function CreateGroupForm({
           <div className="space-y-3 border-t border-border p-4">
             {([
               ["exact", "Marcador exacto", Target],
-              ["diff", "Diferencia de goles", Scale],
-              ["result", "Acertar (1X2)", CircleCheck],
+              ["result", "Acertar resultado (1X2)", CircleCheck],
             ] as const).map(([key, label, Icon]) => (
               <div key={key} className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm">

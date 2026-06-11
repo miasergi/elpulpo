@@ -20,9 +20,7 @@ function teamName(t: unknown) {
 
 function points(ph: number, pa: number, ah: number, aa: number) {
   if (ph === ah && pa === aa) return 5;
-  const same = Math.sign(ph - pa) === Math.sign(ah - aa);
-  if (same && ph - pa === ah - aa) return 3;
-  if (same) return 2;
+  if (Math.sign(ph - pa) === Math.sign(ah - aa)) return 2;
   return 0;
 }
 

@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Target, Scale, CircleCheck, Pencil, type LucideIcon } from "lucide-react";
+import { Target, CircleCheck, Pencil, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const FIELDS: { key: "pts_exact" | "pts_goal_diff" | "pts_result"; label: string; Icon: LucideIcon }[] = [
+const FIELDS: { key: "pts_exact" | "pts_result"; label: string; Icon: LucideIcon }[] = [
   { key: "pts_exact", label: "Marcador exacto", Icon: Target },
-  { key: "pts_goal_diff", label: "Diferencia de goles", Icon: Scale },
-  { key: "pts_result", label: "Acertar (1X2)", Icon: CircleCheck },
+  { key: "pts_result", label: "Acertar resultado (1X2)", Icon: CircleCheck },
 ];
 
 /** Group scoring rules; the owner can edit them in place. */

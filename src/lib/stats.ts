@@ -11,7 +11,7 @@ export interface PlayerStats {
   currentStreak: number; // ongoing run of correct results
 }
 
-const DEFAULTS = { exact: 5, diff: 3, result: 2 };
+const DEFAULTS = { exact: 5, result: 2 };
 
 /** Aggregate stats for a player in one group, across finished matches they predicted. */
 export async function getPlayerStats(userId: string, groupId: string | null): Promise<PlayerStats> {
@@ -61,8 +61,6 @@ export async function getPlayerStats(userId: string, groupId: string | null): Pr
     const sameResult = Math.sign(ph - pa) === Math.sign(ah - aa);
     if (ph === ah && pa === aa) {
       exacts++; results++; points += DEFAULTS.exact * mult;
-    } else if (sameResult && ph - pa === ah - aa) {
-      goalDiffs++; results++; points += DEFAULTS.diff * mult;
     } else if (sameResult) {
       results++; points += DEFAULTS.result * mult;
     }

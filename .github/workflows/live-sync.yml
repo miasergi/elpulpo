@@ -1,0 +1,18 @@
+name: Live sync
+
+# Keeps scores/standings fresh and fires push notifications during matches.
+# Runs every 5 minutes (free & unlimited for public repos). GitHub may delay
+# scheduled runs under load; that's fine for football scores.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync fixtures & live scores
+        run: curl -sS -m 60 "https://elpulpo.vercel.app/api/sync?secret=${{ secrets.CRON_SECRET }}" || true
+      - name: Kickoff reminders & result notifications
+        run: curl -sS -m 60 "https://elpulpo.vercel.app/api/notify?secret=${{ secrets.CRON_SECRET }}" || true

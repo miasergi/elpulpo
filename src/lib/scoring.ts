@@ -1,6 +1,7 @@
 export interface ScoringRules {
   exact: number;
-  diff: number;
+  /** Deprecated: the goal-difference tier was removed (migration 0010). */
+  diff?: number;
   result: number;
 }
 
@@ -18,18 +19,17 @@ export function matchMultiplier(
   return doubles ? 2 : 1;
 }
 
-/** TS mirror of the SQL prediction_points() function (migration 0001). */
+/** TS mirror of the SQL prediction_points() function. Two tiers: exact, or
+ *  correct result (1X2, includes draws). Goal-difference tier removed (0010). */
 export function predictionPoints(
   ph: number,
   pa: number,
   ah: number | null,
   aa: number | null,
-  pts: { exact: number; diff: number; result: number }
+  pts: { exact: number; result: number }
 ): number {
   if (ah == null || aa == null) return 0;
   if (ph === ah && pa === aa) return pts.exact;
-  const sameResult = Math.sign(ph - pa) === Math.sign(ah - aa);
-  if (sameResult && ph - pa === ah - aa) return pts.diff;
-  if (sameResult) return pts.result;
+  if (Math.sign(ph - pa) === Math.sign(ah - aa)) return pts.result;
   return 0;
 }
