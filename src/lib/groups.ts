@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMatches, type MatchRow } from "@/lib/queries";
-import { isLocked } from "@/lib/format";
+import { isLocked, dayKey } from "@/lib/format";
 import { predictionPoints, matchMultiplier } from "@/lib/scoring";
 
 export interface StandingRow {
@@ -158,6 +158,182 @@ export async function getGroupActivity(groupId: string, competitionId: string): 
   }
 
   return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// HEAD TO HEAD — compare two members across all played matches.
+// ─────────────────────────────────────────────────────────────────────
+export interface H2HSide {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  total: number;
+  wins: number; // matches where this player scored more than the other
+  exacts: number;
+}
+export interface H2HMatch {
+  match: MatchRow;
+  aHome: number | null;
+  aAway: number | null;
+  aPts: number;
+  bHome: number | null;
+  bAway: number | null;
+  bPts: number;
+  winner: "a" | "b" | "tie";
+}
+export interface HeadToHead {
+  a: H2HSide;
+  b: H2HSide;
+  draws: number;
+  matches: H2HMatch[];
+}
+
+export async function getHeadToHead(
+  group: { id: string; competition_id: string; pts_exact: number; pts_result: number },
+  aId: string,
+  bId: string
+): Promise<HeadToHead | null> {
+  const supabase = await createClient();
+  const [{ data: profiles }, { data: memberRows }, matchesAll] = await Promise.all([
+    supabase.from("profiles").select("id, display_name, avatar_url").in("id", [aId, bId]),
+    supabase.from("group_members").select("user_id, underdog_team_id").eq("group_id", group.id).in("user_id", [aId, bId]),
+    getMatches(group.competition_id),
+  ]);
+  const profMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  if (!profMap.has(aId) || !profMap.has(bId)) return null;
+  const underdogOf = new Map((memberRows ?? []).map((r) => [r.user_id, r.underdog_team_id]));
+
+  const played = matchesAll
+    .filter((m) => (m.status === "finished" || m.status === "live") && m.home_score != null && m.away_score != null)
+    .sort((x, y) => new Date(y.kickoff_at).getTime() - new Date(x.kickoff_at).getTime());
+
+  const { data: preds } = await supabase
+    .from("predictions")
+    .select("match_id, user_id, home_score, away_score")
+    .eq("group_id", group.id)
+    .in("user_id", [aId, bId])
+    .in("match_id", played.map((m) => m.id));
+
+  const predOf = new Map<string, { h: number; a: number }>(); // `${matchId}:${uid}`
+  for (const p of preds ?? []) predOf.set(`${p.match_id}:${p.user_id}`, { h: p.home_score, a: p.away_score });
+
+  const pts = { exact: group.pts_exact, result: group.pts_result };
+  const side = (id: string): H2HSide => ({
+    id,
+    name: profMap.get(id)?.display_name ?? "Jugador",
+    avatar_url: profMap.get(id)?.avatar_url ?? null,
+    total: 0,
+    wins: 0,
+    exacts: 0,
+  });
+  const a = side(aId);
+  const b = side(bId);
+  let draws = 0;
+  const matches: H2HMatch[] = [];
+
+  for (const m of played) {
+    const pa = predOf.get(`${m.id}:${aId}`);
+    const pb = predOf.get(`${m.id}:${bId}`);
+    if (!pa && !pb) continue; // neither predicted → skip
+    const aPts = pa ? predictionPoints(pa.h, pa.a, m.home_score, m.away_score, pts) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(aId) ?? null) : 0;
+    const bPts = pb ? predictionPoints(pb.h, pb.a, m.home_score, m.away_score, pts) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(bId) ?? null) : 0;
+    a.total += aPts;
+    b.total += bPts;
+    if (pa && m.home_score === pa.h && m.away_score === pa.a) a.exacts++;
+    if (pb && m.home_score === pb.h && m.away_score === pb.a) b.exacts++;
+    const winner = aPts > bPts ? "a" : bPts > aPts ? "b" : "tie";
+    if (winner === "a") a.wins++;
+    else if (winner === "b") b.wins++;
+    else draws++;
+    matches.push({ match: m, aHome: pa?.h ?? null, aAway: pa?.a ?? null, aPts, bHome: pb?.h ?? null, bAway: pb?.a ?? null, bPts, winner });
+  }
+
+  return { a, b, draws, matches };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// TODAY / LIVE — today's matches with the group's live points race.
+// ─────────────────────────────────────────────────────────────────────
+export interface TodayScorer {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  home: number;
+  away: number;
+  points: number;
+}
+export interface TodayMatch {
+  match: MatchRow;
+  locked: boolean;
+  live: boolean;
+  finished: boolean;
+  iPredicted: boolean;
+  scorers: TodayScorer[]; // locked matches only, sorted by points desc
+}
+
+export async function getTodayLive(
+  group: { id: string; competition_id: string; pts_exact: number; pts_result: number },
+  members: { id: string; display_name: string; avatar_url: string | null }[],
+  currentUserId: string
+): Promise<TodayMatch[]> {
+  const supabase = await createClient();
+  const matches = await getMatches(group.competition_id);
+  const today = dayKey(new Date().toISOString());
+  const todays = matches
+    .filter((m) => dayKey(m.kickoff_at) === today)
+    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime());
+  if (todays.length === 0 || members.length === 0) return [];
+
+  const memberIds = members.map((m) => m.id);
+  const [{ data: preds }, { data: memberRows }] = await Promise.all([
+    supabase
+      .from("predictions")
+      .select("match_id, user_id, home_score, away_score")
+      .eq("group_id", group.id)
+      .in("match_id", todays.map((m) => m.id))
+      .in("user_id", memberIds),
+    supabase.from("group_members").select("user_id, underdog_team_id").eq("group_id", group.id),
+  ]);
+  const underdogOf = new Map((memberRows ?? []).map((r) => [r.user_id, r.underdog_team_id]));
+  const profileById = new Map(members.map((m) => [m.id, m]));
+  const pts = { exact: group.pts_exact, result: group.pts_result };
+
+  const byMatch = new Map<string, typeof preds>();
+  for (const p of preds ?? []) {
+    if (!byMatch.has(p.match_id)) byMatch.set(p.match_id, []);
+    byMatch.get(p.match_id)!.push(p);
+  }
+
+  return todays.map((m) => {
+    const locked = isLocked(m.status, m.kickoff_at);
+    const mine = (byMatch.get(m.id) ?? []).find((p) => p.user_id === currentUserId);
+    const scorers: TodayScorer[] =
+      locked && m.home_score != null
+        ? (byMatch.get(m.id) ?? [])
+            .map((p) => {
+              const prof = profileById.get(p.user_id);
+              return {
+                user_id: p.user_id,
+                display_name: prof?.display_name ?? "Jugador",
+                avatar_url: prof?.avatar_url ?? null,
+                home: p.home_score,
+                away: p.away_score,
+                points:
+                  predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
+                  matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null),
+              };
+            })
+            .sort((a, b) => b.points - a.points)
+        : [];
+    return {
+      match: m,
+      locked,
+      live: m.status === "live",
+      finished: m.status === "finished",
+      iPredicted: !!mine,
+      scorers,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────

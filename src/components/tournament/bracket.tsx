@@ -1,7 +1,9 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamFlag } from "@/components/match/team-flag";
 import { Badge } from "@/components/ui/badge";
-import { kickoffLabel, statusBadge } from "@/lib/format";
+import { kickoffLabel, statusBadge, isLocked } from "@/lib/format";
 import type { KnockoutRound } from "@/lib/tournament";
 import type { MatchRow } from "@/lib/queries";
 
@@ -33,9 +35,12 @@ function KoMatch({ match }: { match: MatchRow }) {
   const badge = statusBadge(match.status, match.minute);
   const homeWon = finished && match.home_score! > match.away_score!;
   const awayWon = finished && match.away_score! > match.home_score!;
+  // Predictable once the teams are set and it hasn't kicked off.
+  const predictable =
+    !isLocked(match.status, match.kickoff_at) && !!match.home_team && !!match.away_team;
 
-  return (
-    <div className="rounded-lg border border-border bg-surface/60 p-3">
+  const inner = (
+    <>
       <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="truncate">{match.stage}</span>
         {badge ? <Badge variant={badge.variant}>{badge.label}</Badge> : <span>{kickoffLabel(match.kickoff_at)}</span>}
@@ -43,8 +48,22 @@ function KoMatch({ match }: { match: MatchRow }) {
       <KoSide team={match.home_team} score={match.home_score} winner={homeWon} dim={awayWon} />
       <div className="my-1 h-px bg-border/50" />
       <KoSide team={match.away_team} score={match.away_score} winner={awayWon} dim={homeWon} />
-    </div>
+      {predictable && (
+        <div className="mt-2 flex items-center justify-center gap-1 border-t border-border/60 pt-2 text-[11px] font-medium text-pulpo-300">
+          Predecir este cruce <ChevronRight className="h-3 w-3" />
+        </div>
+      )}
+    </>
   );
+
+  if (predictable) {
+    return (
+      <Link href={`/app/matches/${match.id}`} className="block rounded-lg border border-pulpo-500/40 bg-surface/60 p-3">
+        {inner}
+      </Link>
+    );
+  }
+  return <div className="rounded-lg border border-border bg-surface/60 p-3">{inner}</div>;
 }
 
 function KoSide({

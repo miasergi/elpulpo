@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Medal, BarChart3, ChevronDown, Zap, Check, X, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { Medal, BarChart3, ChevronDown, Zap, Check, X, EyeOff, Swords } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { TeamFlag } from "@/components/match/team-flag";
 import { cn } from "@/lib/utils";
@@ -14,12 +15,15 @@ export function StandingsList({
   currentUserId,
   bonusBoard,
   tournamentStarted = true,
+  groupId,
 }: {
   rows: StandingRow[];
   currentUserId: string;
   /** Per-member underdog + bonus answers (as visible to the caller). */
   bonusBoard?: Record<string, MemberBonusInfo>;
   tournamentStarted?: boolean;
+  /** Enables the "compare" link to other members. */
+  groupId?: string;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -80,7 +84,12 @@ export function StandingsList({
             </button>
 
             {open && info && (
-              <MemberBonusPanel info={info} isMe={isMe} tournamentStarted={tournamentStarted} />
+              <MemberBonusPanel
+                info={info}
+                isMe={isMe}
+                tournamentStarted={tournamentStarted}
+                compareHref={!isMe && groupId ? `/app/groups/${groupId}/compare/${r.user_id}` : null}
+              />
             )}
           </div>
         );
@@ -93,14 +102,24 @@ function MemberBonusPanel({
   info,
   isMe,
   tournamentStarted,
+  compareHref,
 }: {
   info: MemberBonusInfo;
   isMe: boolean;
   tournamentStarted: boolean;
+  compareHref?: string | null;
 }) {
   const showUnderdog = isMe || tournamentStarted;
   return (
     <div className="space-y-2.5 border-t border-border/60 px-3 pb-3 pt-2.5 text-sm">
+      {compareHref && (
+        <Link
+          href={compareHref}
+          className="flex items-center justify-center gap-1.5 rounded-md border border-pulpo-500/40 bg-pulpo-500/10 py-1.5 text-xs font-semibold text-pulpo-200"
+        >
+          <Swords className="h-3.5 w-3.5" /> Cara a cara contigo
+        </Link>
+      )}
       {/* Underdog pick */}
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-1 text-xs font-medium text-warning">

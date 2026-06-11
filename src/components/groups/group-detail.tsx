@@ -17,6 +17,7 @@ import { GroupBadge } from "./group-badge";
 import { GroupMatches } from "./group-matches";
 import { GroupSettings } from "./group-settings";
 import { PointsTimeline, TimelineIntro } from "./points-timeline";
+import { ShareRank } from "./share-rank";
 import { ScoringEditor } from "./scoring-editor";
 import type { StandingRow, TimelineEntry, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
 
@@ -136,6 +137,18 @@ export function GroupDetail({
                 </span>
               </Link>
             )}
+            {me && me.played > 0 && (
+              <div className="mb-3">
+                <ShareRank
+                  group={group.name}
+                  player={me.display_name}
+                  rank={me.rank}
+                  total={me.total_points}
+                  of={standings.length}
+                  played={me.played}
+                />
+              </div>
+            )}
             <p className="mb-2 text-xs text-muted-foreground">
               Toca a un jugador para ver su tapado y sus bonus.
             </p>
@@ -144,6 +157,7 @@ export function GroupDetail({
               currentUserId={currentUserId}
               bonusBoard={bonusBoard}
               tournamentStarted={tournamentStarted}
+              groupId={group.id}
             />
           </>
         )}

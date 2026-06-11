@@ -9,10 +9,11 @@ import {
   getMyPredictions,
   getMyBonusCount,
 } from "@/lib/queries";
-import { getMyStandings } from "@/lib/groups";
+import { getMyStandings, getGroupMembers, getTodayLive } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
 import { GettingStarted } from "@/components/app/getting-started";
 import { WorldCupHero } from "@/components/app/world-cup-hero";
+import { LiveToday } from "@/components/app/live-today";
 import { GroupBadge } from "@/components/groups/group-badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -39,6 +40,19 @@ export default async function DashboardPage() {
     competition ? getMatches(competition.id) : Promise.resolve([]),
   ]);
 
+  // Today's matches + the active group's live points race.
+  let today: Awaited<ReturnType<typeof getTodayLive>> = [];
+  if (activeGroup) {
+    const members = await getGroupMembers(activeGroup.id);
+    today = await getTodayLive(
+      activeGroup,
+      members.flatMap((m) =>
+        m.profile ? [{ id: m.profile.id, display_name: m.profile.display_name, avatar_url: m.profile.avatar_url }] : []
+      ),
+      profile.id
+    );
+  }
+
   const nextMatches = allMatches.filter((m) => m.status === "scheduled").slice(0, 3);
   const me = activeGroup ? standings.get(activeGroup.id) : null;
 
@@ -59,6 +73,8 @@ export default async function DashboardPage() {
       </div>
 
       {competition && <WorldCupHero competitionName={competition.name} matches={allMatches} />}
+
+      {today.length > 0 && <LiveToday matches={today} currentUserId={profile.id} />}
 
       <GettingStarted
         hasGroup={groups.length > 0}
