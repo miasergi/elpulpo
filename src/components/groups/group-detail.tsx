@@ -16,6 +16,7 @@ import { InviteCard } from "./invite-card";
 import { ActivityFeed } from "./activity-feed";
 import { GroupIcon } from "./group-icon";
 import { GroupMatches } from "./group-matches";
+import { GroupSettings } from "./group-settings";
 import { ScoringEditor } from "./scoring-editor";
 import type { StandingRow, ActivityItem, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
 
@@ -168,10 +169,22 @@ export function GroupDetail({
           <div className="space-y-5 pb-8">
             <InviteCard code={group.invite_code} groupName={group.name} />
 
-            {group.description && (
-              <div className="rounded-lg border border-border bg-surface/50 p-4 text-sm text-muted">
-                {group.description}
-              </div>
+            {isOwner ? (
+              <GroupSettings
+                groupId={group.id}
+                initial={{
+                  name: group.name,
+                  description: group.description,
+                  icon: group.icon,
+                  color: group.color,
+                }}
+              />
+            ) : (
+              group.description && (
+                <div className="rounded-lg border border-border bg-surface/50 p-4 text-sm text-muted">
+                  {group.description}
+                </div>
+              )
             )}
 
             <ScoringEditor
