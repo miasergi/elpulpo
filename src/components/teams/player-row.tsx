@@ -22,12 +22,22 @@ function age(born: string | null) {
   return Number.isFinite(years) && years > 13 && years < 50 ? years : null;
 }
 
-/** Compact squad list row: number · photo/flag/initials · name + meta · club. */
-export function PlayerRow({ player, teamFlag }: { player: SquadPlayer; teamFlag: TeamLite }) {
+/** Compact squad list row: number · avatar · name + meta · club.
+ *  `usePhotos` is decided per team so a squad never mixes photos and crests. */
+export function PlayerRow({
+  player,
+  teamFlag,
+  usePhotos,
+}: {
+  player: SquadPlayer;
+  teamFlag: TeamLite;
+  usePhotos: boolean;
+}) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const years = age(player.born);
   const position = player.positionDetail || player.position;
   const meta = [position, years ? `${years} años` : null].filter(Boolean).join(" · ");
+  const showPhoto = usePhotos && player.photo && !photoFailed;
 
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
@@ -35,12 +45,12 @@ export function PlayerRow({ player, teamFlag }: { player: SquadPlayer; teamFlag:
         {player.number ?? "–"}
       </span>
 
-      {/* Photo → country flag → initials */}
+      {/* Per-team: either everyone's official photo, or everyone's crest. */}
       <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-3">
-        {player.photo && !photoFailed ? (
+        {showPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={player.photo}
+            src={player.photo!}
             alt={player.name}
             loading="lazy"
             decoding="async"

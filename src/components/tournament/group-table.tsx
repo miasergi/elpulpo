@@ -28,12 +28,22 @@ export function GroupTable({ label, standings }: { label: string; standings: Sta
           {standings.map((r) => (
             <tr key={r.team.id} className="border-t border-border/60">
               <td className="py-2 pl-3">
-                <span
-                  className={cn(
-                    "flex h-5 w-1.5 rounded-full",
-                    r.rank <= 2 ? "bg-pitch-500" : r.rank === 3 ? "bg-warning" : "bg-transparent"
-                  )}
-                />
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-5 w-1 rounded-full",
+                      r.rank <= 2 ? "bg-pitch-500" : r.rank === 3 ? "bg-warning" : "bg-transparent"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-sm font-bold tabular-nums",
+                      r.rank <= 2 ? "text-pitch-400" : r.rank === 3 ? "text-warning" : "text-muted-foreground"
+                    )}
+                  >
+                    {r.rank}
+                  </span>
+                </span>
               </td>
               <td className="py-2">
                 <div className="flex items-center gap-2">

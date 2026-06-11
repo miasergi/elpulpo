@@ -51,6 +51,10 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     clubBadge: p.club_badge,
   }));
 
+  // Decide ONCE per team whether to use official photos: only if every called
+  // player has one, so a squad is never a mix of photos and crests.
+  const usePhotos = players.length > 0 && players.every((p) => p.photo);
+
   const grouped = BUCKETS.map((b) => ({
     ...b,
     players: players.filter((p) => bucketOf(p) === b.key),
@@ -100,13 +104,13 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
               <h2 className="mb-1.5 text-sm font-semibold text-muted">{b.label}</h2>
               <div className="overflow-hidden rounded-lg border border-border bg-surface/50 divide-y divide-border/60">
                 {b.players.map((p) => (
-                  <PlayerRow key={p.id} player={p} teamFlag={team} />
+                  <PlayerRow key={p.id} player={p} teamFlag={team} usePhotos={usePhotos} />
                 ))}
               </div>
             </section>
           ))}
           <p className="text-center text-[11px] text-muted-foreground">
-            Convocatoria oficial · fotos FIFA
+            Convocatoria oficial FIFA{usePhotos ? " · fotos oficiales" : ""}
           </p>
         </div>
       )}
