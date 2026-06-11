@@ -14,7 +14,7 @@ import { StandingsList } from "./standings-list";
 import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
 import { ActivityFeed } from "./activity-feed";
-import { GroupIcon } from "./group-icon";
+import { GroupBadge } from "./group-badge";
 import { GroupMatches } from "./group-matches";
 import { GroupSettings } from "./group-settings";
 import { ScoringEditor } from "./scoring-editor";
@@ -43,6 +43,7 @@ export function GroupDetail({
     description: string | null;
     icon: string;
     color: string;
+    logo_url: string | null;
     invite_code: string;
     owner_id: string;
     pts_exact: number;
@@ -93,12 +94,7 @@ export function GroupDetail({
     <div>
       {/* Group header */}
       <div className="flex items-center gap-3 pb-4">
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${group.color}22` }}
-        >
-          <GroupIcon name={group.icon} size={28} color={group.color} />
-        </div>
+        <GroupBadge icon={group.icon} color={group.color} logoUrl={group.logo_url} size={56} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-bold">{group.name}</h1>
           <p className="text-sm text-muted">
@@ -177,6 +173,7 @@ export function GroupDetail({
                   description: group.description,
                   icon: group.icon,
                   color: group.color,
+                  logo_url: group.logo_url,
                 }}
               />
             ) : (

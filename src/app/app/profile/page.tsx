@@ -50,6 +50,7 @@ export default async function ProfilePage() {
             name: g.name!,
             icon: g.icon!,
             color: g.color!,
+            logo_url: g.logo_url ?? null,
           }))}
           activeGroupId={profile.active_group_id}
           userId={profile.id}

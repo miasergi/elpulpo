@@ -29,31 +29,28 @@ function age(born: string | null) {
   return Number.isFinite(years) && years > 13 && years < 50 ? years : null;
 }
 
-export function PlayerCard({ player }: { player: SdbPlayer }) {
+/** Compact squad list row: number · initials · name + meta · club. */
+export function PlayerRow({ player }: { player: SdbPlayer }) {
   const years = age(player.born);
+  const meta = [positionEs(player.position), years ? `${years} años` : null].filter(Boolean).join(" · ");
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface/60">
-      <div className="relative flex h-28 items-center justify-center bg-gradient-to-b from-pulpo-500/15 to-surface-2">
-        {player.number && (
-          <span className="absolute left-2 top-1.5 text-2xl font-extrabold text-foreground/15">
-            {player.number}
-          </span>
-        )}
-        {/* Initials avatar (no licensed photos available). */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-pulpo-500 to-pulpo-700 text-xl font-bold text-white">
-          {getInitials(player.name)}
-        </div>
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
+        {player.number ?? "–"}
+      </span>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pulpo-500 to-pulpo-700 text-xs font-bold text-white">
+        {getInitials(player.name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{player.name}</p>
+        {meta && <p className="truncate text-[11px] text-muted-foreground">{meta}</p>}
       </div>
-      <div className="p-2.5">
-        <p className="truncate text-sm font-semibold">{player.name}</p>
-        <p className="truncate text-[11px] text-muted">
-          {[positionEs(player.position), years ? `${years} años` : null].filter(Boolean).join(" · ")}
-        </p>
-        {player.club && (
-          <p className="truncate text-[11px] text-muted-foreground">{player.club}</p>
-        )}
-      </div>
+      {player.club && (
+        <span className="max-w-[40%] shrink-0 truncate text-right text-[11px] text-muted">
+          {player.club}
+        </span>
+      )}
     </div>
   );
 }

@@ -89,6 +89,7 @@ export interface Database {
           competition_id: string;
           color: string;
           icon: string;
+          logo_url: string | null;
           is_public: boolean;
           pts_exact: number;
           pts_goal_diff: number;
@@ -109,6 +110,7 @@ export interface Database {
           position: string | null;
           birth_date: string | null;
           photo_url: string | null;
+          club: string | null;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["players"]["Row"]> & { team_id: string; external_id: string; name: string };

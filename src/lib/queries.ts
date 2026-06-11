@@ -136,7 +136,7 @@ export const getMyGroups = cache(async (userId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("group_members")
-    .select("role, group:groups(id,name,icon,color,invite_code,competition_id)")
+    .select("role, group:groups(id,name,icon,color,logo_url,invite_code,competition_id)")
     .eq("user_id", userId);
   return (data ?? [])
     .map((r) => ({ role: r.role, ...(Array.isArray(r.group) ? r.group[0] : r.group) }))

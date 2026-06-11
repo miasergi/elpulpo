@@ -5,7 +5,7 @@ import { getBonusMarkets, getCompetitionTeams } from "@/lib/bonus";
 import { BackHeader } from "@/components/app/back-header";
 import { BonusForm } from "@/components/bonus/bonus-form";
 import { UnderdogPicker } from "@/components/bonus/underdog-picker";
-import { GroupIcon } from "@/components/groups/group-icon";
+import { GroupBadge } from "@/components/groups/group-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,7 @@ export default async function BonusPage() {
         href="/app/profile"
         className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 text-xs text-muted"
       >
-        <GroupIcon name={group.icon} size={16} color={group.color} />
+        <GroupBadge icon={group.icon} color={group.color} logoUrl={group.logo_url} size={20} rounded="rounded-md" />
         Respondiendo para <span className="font-semibold text-foreground">{group.name}</span>
       </Link>
 

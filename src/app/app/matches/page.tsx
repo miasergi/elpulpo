@@ -4,7 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { getActiveCompetition, getActiveGroup, getMatches, getMyPredictions, getMyMembership } from "@/lib/queries";
 import { MatchesBrowser } from "@/components/match/matches-browser";
 import { PageHeader } from "@/components/app/page-header";
-import { GroupIcon } from "@/components/groups/group-icon";
+import { GroupBadge } from "@/components/groups/group-badge";
 import { AdBanner } from "@/components/ads/ad-banner";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export default async function MatchesPage() {
           href="/app/profile"
           className="mb-2 mt-1 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2"
         >
-          <GroupIcon name={group.icon} size={16} color={group.color} />
+          <GroupBadge icon={group.icon} color={group.color} logoUrl={group.logo_url} size={20} rounded="rounded-md" />
           <span className="flex-1 truncate text-xs text-muted">
             Prediciendo para <span className="font-semibold text-foreground">{group.name}</span>
           </span>

@@ -8,13 +8,14 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { GroupIcon } from "./group-icon";
+import { GroupBadge } from "./group-badge";
 
 export interface SwitcherGroup {
   id: string;
   name: string;
   icon: string;
   color: string;
+  logo_url: string | null;
 }
 
 /** Biwenger-style league switcher: pick which group the whole app shows. */
@@ -70,12 +71,7 @@ export function GroupSwitcher({
                 active ? "border-primary/60 bg-primary/10" : "border-border bg-surface/50"
               )}
             >
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${g.color}22` }}
-              >
-                <GroupIcon name={g.icon} size={20} color={g.color} />
-              </div>
+              <GroupBadge icon={g.icon} color={g.color} logoUrl={g.logo_url} size={40} rounded="rounded-lg" />
               <span className={cn("min-w-0 flex-1 truncate font-medium", active && "text-pulpo-200")}>
                 {g.name}
               </span>

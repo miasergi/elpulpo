@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTeamPlayers, type SdbPlayer } from "@/lib/sports-db";
 import { BackHeader } from "@/components/app/back-header";
 import { TeamFlag } from "@/components/match/team-flag";
-import { PlayerCard } from "@/components/teams/player-card";
+import { PlayerRow } from "@/components/teams/player-row";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
   // players if the squad hasn't been synced yet.
   const { data: dbPlayers } = await supabase
     .from("players")
-    .select("id,name,number,position,birth_date,photo_url")
+    .select("id,name,number,position,birth_date,club")
     .eq("team_id", team.id)
     .order("number", { ascending: true, nullsFirst: false });
 
@@ -48,10 +48,10 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           id: p.id,
           name: p.name,
           position: p.position,
-          club: null,
+          club: p.club,
           number: p.number != null ? String(p.number) : null,
           born: p.birth_date,
-          cutout: p.photo_url,
+          cutout: null,
           thumb: null,
         }))
       : team.external_id
@@ -101,13 +101,13 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           <p className="mt-3">Aún no tenemos la plantilla de esta selección.</p>
         </div>
       ) : (
-        <div className="mt-5 space-y-6 pb-8">
+        <div className="mt-5 space-y-5 pb-8">
           {grouped.map((b) => (
             <section key={b.key}>
-              <h2 className="mb-2 text-sm font-semibold text-muted">{b.label}</h2>
-              <div className="grid grid-cols-2 gap-2">
+              <h2 className="mb-1.5 text-sm font-semibold text-muted">{b.label}</h2>
+              <div className="overflow-hidden rounded-lg border border-border bg-surface/50 divide-y divide-border/60">
                 {b.players.map((p) => (
-                  <PlayerCard key={p.id} player={p} />
+                  <PlayerRow key={p.id} player={p} />
                 ))}
               </div>
             </section>

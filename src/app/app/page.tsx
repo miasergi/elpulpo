@@ -13,7 +13,7 @@ import { getMyStandings } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
 import { GettingStarted } from "@/components/app/getting-started";
 import { WorldCupHero } from "@/components/app/world-cup-hero";
-import { GroupIcon } from "@/components/groups/group-icon";
+import { GroupBadge } from "@/components/groups/group-badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -102,12 +102,13 @@ export default async function DashboardPage() {
               href="/app/groups"
               className="flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-surface/60 p-3.5"
             >
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${activeGroup.color}22` }}
-              >
-                <GroupIcon name={activeGroup.icon} size={24} color={activeGroup.color} />
-              </div>
+              <GroupBadge
+                icon={activeGroup.icon}
+                color={activeGroup.color}
+                logoUrl={activeGroup.logo_url}
+                size={48}
+                rounded="rounded-lg"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{activeGroup.name}</p>
                 <p className="text-xs text-muted">
