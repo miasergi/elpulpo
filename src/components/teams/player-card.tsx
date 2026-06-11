@@ -37,24 +37,26 @@ export function PlayerCard({ player }: { player: SdbPlayer }) {
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface/60">
-      <div className="relative flex h-28 items-end justify-center bg-gradient-to-b from-pulpo-500/15 to-surface-2">
+      <div className="relative flex h-28 items-start justify-center overflow-hidden bg-gradient-to-b from-pulpo-500/15 to-surface-2">
         {player.number && (
           <span className="absolute left-2 top-1.5 text-2xl font-extrabold text-foreground/15">
             {player.number}
           </span>
         )}
         {photo && !imgFailed ? (
+          // Head-and-shoulders crop: cutouts come in club kit, so we show
+          // mostly the face (top ~55% of the image).
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={photo}
             alt={player.name}
             loading="lazy"
             decoding="async"
-            className="h-full object-contain object-bottom drop-shadow-md"
+            className="h-[180%] w-auto object-cover object-top drop-shadow-md"
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <User className="mb-3 h-12 w-12 text-muted-foreground" />
+          <User className="mt-8 h-12 w-12 text-muted-foreground" />
         )}
       </div>
       <div className="p-2.5">

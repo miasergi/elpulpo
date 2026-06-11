@@ -17,7 +17,7 @@ import { ActivityFeed } from "./activity-feed";
 import { GroupIcon } from "./group-icon";
 import { GroupMatches } from "./group-matches";
 import { ScoringEditor } from "./scoring-editor";
-import type { StandingRow, ActivityItem, GroupUpcomingMatch, GroupRecentMatch } from "@/lib/groups";
+import type { StandingRow, ActivityItem, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
 
 type Tab = "ranking" | "matches" | "activity" | "chat" | "info";
 
@@ -32,6 +32,8 @@ export function GroupDetail({
   members,
   activity,
   matchboard,
+  bonusBoard,
+  tournamentStarted,
   currentUserId,
 }: {
   group: {
@@ -50,6 +52,8 @@ export function GroupDetail({
   members: Member[];
   activity: ActivityItem[];
   matchboard: { upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] };
+  bonusBoard: Record<string, MemberBonusInfo>;
+  tournamentStarted: boolean;
   currentUserId: string;
 }) {
   const [tab, setTab] = useState<Tab>("ranking");
@@ -135,7 +139,15 @@ export function GroupDetail({
                 </span>
               </Link>
             )}
-            <StandingsList rows={standings} currentUserId={currentUserId} />
+            <p className="mb-2 text-xs text-muted-foreground">
+              Toca a un jugador para ver su tapado y sus bonus.
+            </p>
+            <StandingsList
+              rows={standings}
+              currentUserId={currentUserId}
+              bonusBoard={bonusBoard}
+              tournamentStarted={tournamentStarted}
+            />
           </>
         )}
 

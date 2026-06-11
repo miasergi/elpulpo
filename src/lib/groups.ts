@@ -240,6 +240,101 @@ export async function getGroupMatchboard(
   };
 }
 
+export interface MemberBonusAnswer {
+  label: string;
+  points: number;
+  answer: string;
+  status: "pending" | "correct" | "wrong";
+}
+
+export interface MemberBonusInfo {
+  underdog: { id: string; name: string; code: string | null; flag_url: string | null } | null;
+  answers: MemberBonusAnswer[];
+  /** Markets this member answered that the caller can't see yet (pre-close). */
+  answered: number;
+  totalMarkets: number;
+}
+
+/** Each member's underdog pick + bonus answers, as far as RLS lets the
+ *  caller see them (own always; others' once markets close). */
+export async function getGroupBonusBoard(
+  groupId: string,
+  competitionId: string
+): Promise<Record<string, MemberBonusInfo>> {
+  const supabase = await createClient();
+
+  const [{ data: markets }, { data: preds }, { data: members }] = await Promise.all([
+    supabase
+      .from("bonus_markets")
+      .select("id,label,kind,points,resolved,correct_team_id,correct_text")
+      .eq("competition_id", competitionId)
+      .order("points", { ascending: false }),
+    supabase
+      .from("bonus_predictions")
+      .select("user_id, market_id, answer_text, team:teams(id,name,short_name)")
+      .eq("group_id", groupId),
+    supabase
+      .from("group_members")
+      .select("user_id, underdog:teams!group_members_underdog_team_id_fkey(id,name,code,flag_url)")
+      .eq("group_id", groupId),
+  ]);
+
+  // Hand-authored DB types don't know the embedded FK joins; normalise here.
+  type UnderdogTeam = { id: string; name: string; code: string | null; flag_url: string | null };
+  type AnswerTeam = { id: string; name: string; short_name: string | null };
+  const memberRows = (members ?? []) as unknown as {
+    user_id: string;
+    underdog: UnderdogTeam | UnderdogTeam[] | null;
+  }[];
+  const predRows = (preds ?? []) as unknown as {
+    user_id: string;
+    market_id: string;
+    answer_text: string | null;
+    team: AnswerTeam | AnswerTeam[] | null;
+  }[];
+
+  const marketById = new Map((markets ?? []).map((m) => [m.id, m]));
+  const board: Record<string, MemberBonusInfo> = {};
+  const one = <T,>(v: T | T[] | null) => (Array.isArray(v) ? v[0] ?? null : v ?? null);
+
+  for (const m of memberRows) {
+    board[m.user_id] = {
+      underdog: one(m.underdog),
+      answers: [],
+      answered: 0,
+      totalMarkets: markets?.length ?? 0,
+    };
+  }
+
+  for (const p of predRows) {
+    const market = marketById.get(p.market_id);
+    const entry = board[p.user_id];
+    if (!market || !entry) continue;
+    const team = one(p.team);
+    const answer = market.kind === "team" ? team?.short_name ?? team?.name : p.answer_text;
+    if (!answer) continue;
+    let status: MemberBonusAnswer["status"] = "pending";
+    if (market.resolved) {
+      const ok =
+        market.kind === "team"
+          ? team?.id === market.correct_team_id
+          : (market.correct_text ?? "")
+              .split("|")
+              .map((s) => s.trim().toLowerCase())
+              .filter(Boolean)
+              .includes((p.answer_text ?? "").trim().toLowerCase());
+      status = ok ? "correct" : "wrong";
+    }
+    entry.answers.push({ label: market.label, points: market.points, answer, status });
+    entry.answered += 1;
+  }
+
+  for (const info of Object.values(board)) {
+    info.answers.sort((a, b) => b.points - a.points);
+  }
+  return board;
+}
+
 /** My rank + points in several groups at once (one query, no N+1). */
 export async function getMyStandings(groupIds: string[], userId: string) {
   const result = new Map<string, { rank: number; total: number; total_points: number }>();

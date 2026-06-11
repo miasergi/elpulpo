@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { getGroup, getGroupMembers, getStandings, getGroupActivity, getGroupMatchboard } from "@/lib/groups";
+import { getGroup, getGroupMembers, getStandings, getGroupActivity, getGroupMatchboard, getGroupBonusBoard } from "@/lib/groups";
+import { getMatches } from "@/lib/queries";
 import { GroupDetail } from "@/components/groups/group-detail";
 import { BackHeader } from "@/components/app/back-header";
 import { AdBanner } from "@/components/ads/ad-banner";
@@ -21,11 +22,15 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const isMember = members.some((m) => m.profile?.id === profile.id);
   if (!isMember) redirect("/app/groups");
 
-  const [standings, activity, matchboard] = await Promise.all([
+  const [standings, activity, matchboard, bonusBoard, matches] = await Promise.all([
     getStandings(id),
     getGroupActivity(id, group.competition_id),
     getGroupMatchboard(group, members.flatMap((m) => (m.profile ? [m.profile.id] : []))),
+    getGroupBonusBoard(id, group.competition_id),
+    getMatches(group.competition_id),
   ]);
+  const firstKickoff = matches[0]?.kickoff_at;
+  const tournamentStarted = !!firstKickoff && new Date(firstKickoff) <= new Date();
 
   return (
     <div className="px-5">
@@ -36,6 +41,8 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
         members={members}
         activity={activity}
         matchboard={matchboard}
+        bonusBoard={bonusBoard}
+        tournamentStarted={tournamentStarted}
         currentUserId={profile.id}
       />
       {!profile.is_pro && <AdBanner className="mt-4" />}

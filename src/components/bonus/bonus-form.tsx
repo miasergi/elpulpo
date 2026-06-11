@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Lock, Trophy, Check, Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { TeamPicker } from "./team-picker";
+import { PlayerInput } from "./player-input";
 
 interface Team {
   id: string;
@@ -131,29 +132,25 @@ function MarketCard({
       </div>
 
       {market.kind === "team" ? (
-        <select
+        <TeamPicker
+          teams={teams}
           value={teamId}
           disabled={closed}
-          onChange={(e) => {
-            setTeamId(e.target.value);
-            save(e.target.value);
+          onChange={(id) => {
+            setTeamId(id);
+            save(id);
           }}
-          className="h-12 w-full rounded-md border border-border bg-surface-2 px-3 text-sm disabled:opacity-60"
-        >
-          <option value="">Elige un equipo…</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        />
       ) : (
-        <Input
+        <PlayerInput
           value={text}
           disabled={closed}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => save(undefined, text)}
-          placeholder="Tu respuesta…"
+          onChange={setText}
+          onPick={(name) => {
+            setText(name);
+            save(undefined, name);
+          }}
+          onBlurSave={() => save(undefined, text)}
         />
       )}
 

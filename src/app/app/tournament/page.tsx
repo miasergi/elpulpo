@@ -30,7 +30,7 @@ export default async function TournamentPage() {
         hasGroups={hasGroups}
         hasKnockout={hasKnockout}
         groups={
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             {groups.map((g) => (
               <GroupTable key={g.key} label={g.label} standings={g.standings} />
             ))}

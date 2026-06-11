@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/admin";
 import { getActiveCompetition, getMatches } from "@/lib/queries";
 import { getCompetitionTeams } from "@/lib/bonus";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import type { MarketAnswer } from "@/components/admin/admin-bonus-list";
 import { BackHeader } from "@/components/app/back-header";
 import { SyncButton } from "@/components/admin/sync-button";
 import { AdminMatchList } from "@/components/admin/admin-match-list";
@@ -17,11 +18,13 @@ export default async function AdminPage() {
 
   let bonusMarkets: Awaited<ReturnType<typeof fetchBonus>> = [];
   let teams: Awaited<ReturnType<typeof getCompetitionTeams>> = [];
+  let bonusAnswers: Record<string, MarketAnswer[]> = {};
   if (competition) {
     [bonusMarkets, teams] = await Promise.all([
       fetchBonus(competition.id),
       getCompetitionTeams(competition.id),
     ]);
+    bonusAnswers = await fetchAnswers(bonusMarkets.filter((m) => m.kind === "text").map((m) => m.id));
   }
 
   return (
@@ -52,7 +55,7 @@ export default async function AdminPage() {
         {bonusMarkets.length > 0 && (
           <section>
             <h2 className="mb-2 font-semibold">Resolver bonus</h2>
-            <AdminBonusList markets={bonusMarkets} teams={teams} />
+            <AdminBonusList markets={bonusMarkets} teams={teams} answers={bonusAnswers} />
           </section>
         )}
 
@@ -65,6 +68,31 @@ export default async function AdminPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** Distinct user answers per text market (service role: sees all groups). */
+async function fetchAnswers(marketIds: string[]): Promise<Record<string, MarketAnswer[]>> {
+  if (marketIds.length === 0) return {};
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("bonus_predictions")
+    .select("market_id, answer_text")
+    .in("market_id", marketIds)
+    .not("answer_text", "is", null);
+
+  const byMarket: Record<string, Map<string, MarketAnswer>> = {};
+  for (const row of data ?? []) {
+    const answer = (row.answer_text ?? "").trim();
+    if (!answer) continue;
+    const key = answer.toLowerCase();
+    byMarket[row.market_id] ??= new Map();
+    const existing = byMarket[row.market_id].get(key);
+    if (existing) existing.count += 1;
+    else byMarket[row.market_id].set(key, { answer, count: 1 });
+  }
+  return Object.fromEntries(
+    Object.entries(byMarket).map(([id, m]) => [id, [...m.values()].sort((a, b) => b.count - a.count)])
   );
 }
 

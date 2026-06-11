@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TeamFlag } from "@/components/match/team-flag";
 import type { StandingTeam } from "@/lib/tournament";
@@ -36,8 +37,14 @@ export function GroupTable({ label, standings }: { label: string; standings: Sta
               </td>
               <td className="py-2">
                 <div className="flex items-center gap-2">
-                  <TeamFlag team={r.team} size={22} />
-                  <span className="truncate font-medium">{r.team.short_name ?? r.team.name}</span>
+                  <Link
+                    href={`/app/teams/${r.team.id}`}
+                    className="flex min-w-0 items-center gap-2"
+                    title={`Ver plantilla de ${r.team.name}`}
+                  >
+                    <TeamFlag team={r.team} size={22} />
+                    <span className="truncate font-medium">{r.team.short_name ?? r.team.name}</span>
+                  </Link>
                   {r.form.length > 0 && (
                     <span className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
                       {r.form.slice(-3).map((f, i) => (
