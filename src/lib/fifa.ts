@@ -1,7 +1,8 @@
 // Official squads from the (undocumented but public) FIFA API.
 // World Cup: idCompetition=17, season 2026 = 285023.
+// Note: FIFA's national-kit player photos sit behind an authenticated Gameday
+// API, so we don't store photos — squad cards render initials avatars.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getTeamPlayers } from "@/lib/sports-db";
 
 const FIFA_API = "https://api.fifa.com/api/v3";
 const COMPETITION = "17";
@@ -42,17 +43,6 @@ async function getFifaTeamIds(): Promise<Map<string, string>> {
   return byCode;
 }
 
-/** Strip accents/case for name matching across sources. */
-function normName(s: string) {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** "Dayne ST. CLAIR" → "Dayne St. Clair" (FIFA shouts surnames). */
 function tidyName(s: string) {
   return s
@@ -64,21 +54,19 @@ function tidyName(s: string) {
 export interface SquadSyncResult {
   teams: number;
   players: number;
-  photos: number;
   missing: string[];
 }
 
-/** Replaces each team's roster with the official FIFA squad; photos are
- *  matched by name from TheSportsDB's featured players (best effort). */
+/** Replaces each team's roster with the official FIFA squad (names, numbers,
+ *  positions, ages). No photos: FIFA's national-kit images aren't accessible. */
 export async function syncSquadsFIFA(supabase: SupabaseClient): Promise<SquadSyncResult> {
   const { data: teams } = await supabase
     .from("teams")
-    .select("id, name, code, external_id")
+    .select("id, name, code")
     .not("code", "is", null);
 
   const fifaByCode = await getFifaTeamIds();
   let playerCount = 0;
-  let photoCount = 0;
   let teamCount = 0;
   const missing: string[] = [];
 
@@ -98,34 +86,8 @@ export async function syncSquadsFIFA(supabase: SupabaseClient): Promise<SquadSyn
       continue;
     }
 
-    // Photos: TheSportsDB featured players for this team, matched by name.
-    const photoByName = new Map<string, string>();
-    if (team.external_id) {
-      try {
-        for (const p of await getTeamPlayers(team.external_id)) {
-          const photo = p.cutout || p.thumb;
-          if (photo) photoByName.set(normName(p.name), photo);
-        }
-      } catch {
-        // photos are optional
-      }
-    }
-    const photoFor = (name: string) => {
-      const key = normName(name);
-      if (photoByName.has(key)) return photoByName.get(key)!;
-      // fall back to surname containment (e.g. "Alphonso Davies" vs "A. Davies")
-      for (const [k, url] of photoByName) {
-        const last = key.split(" ").pop()!;
-        if (last.length > 3 && k.includes(last)) return url;
-      }
-      return null;
-    };
-
     const rows = players.map((p) => {
-      const rawName = p.PlayerName?.[0]?.Description ?? "";
-      const name = tidyName(rawName);
-      const photo = photoFor(rawName);
-      if (photo) photoCount++;
+      const name = tidyName(p.PlayerName?.[0]?.Description ?? "");
       return {
         team_id: team.id,
         external_id: p.IdPlayer,
@@ -133,7 +95,7 @@ export async function syncSquadsFIFA(supabase: SupabaseClient): Promise<SquadSyn
         number: p.JerseyNum,
         position: POSITION_ES[p.Position ?? 3] ?? null,
         birth_date: p.BirthDate ? p.BirthDate.slice(0, 10) : null,
-        photo_url: photo,
+        photo_url: null,
         updated_at: new Date().toISOString(),
       };
     });
@@ -149,5 +111,5 @@ export async function syncSquadsFIFA(supabase: SupabaseClient): Promise<SquadSyn
     teamCount++;
   }
 
-  return { teams: teamCount, players: playerCount, photos: photoCount, missing };
+  return { teams: teamCount, players: playerCount, missing };
 }

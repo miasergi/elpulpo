@@ -20,7 +20,7 @@ export function SyncButton() {
     if (json.ok) {
       toast.success(
         kind === "squads"
-          ? `Plantillas: ${json.players} jugadores de ${json.teams} selecciones (${json.photos} con foto)`
+          ? `Plantillas: ${json.players} jugadores de ${json.teams} selecciones`
           : `Sincronizado: ${json.matches} partidos, ${json.teams} equipos`
       );
       router.refresh();

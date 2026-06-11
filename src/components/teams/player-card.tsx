@@ -1,20 +1,19 @@
-"use client";
-
-import { useState } from "react";
-import { User } from "lucide-react";
+import { getInitials } from "@/lib/utils";
 import type { SdbPlayer } from "@/lib/sports-db";
 
 const POSITION_ES: [RegExp, string][] = [
-  [/goalkeeper/i, "Portero"],
-  [/centre-back|center-back/i, "Central"],
-  [/left-back/i, "Lateral izq."],
-  [/right-back/i, "Lateral der."],
-  [/defensive midfield/i, "Pivote"],
-  [/attacking midfield/i, "Mediapunta"],
-  [/central midfield/i, "Mediocentro"],
-  [/left midfield|left wing/i, "Extremo izq."],
-  [/right midfield|right wing/i, "Extremo der."],
-  [/centre-forward|striker/i, "Delantero"],
+  [/portero|arquero|goalkeeper/i, "Portero"],
+  [/central|centre-back|center-back/i, "Central"],
+  [/lateral izq|left-back/i, "Lateral izq."],
+  [/lateral der|right-back/i, "Lateral der."],
+  [/pivote|defensive midfield/i, "Pivote"],
+  [/mediapunta|attacking midfield/i, "Mediapunta"],
+  [/mediocentro|central midfield/i, "Mediocentro"],
+  [/extremo izq|left midfield|left wing/i, "Extremo izq."],
+  [/extremo der|right midfield|right wing/i, "Extremo der."],
+  [/delantero|centre-forward|striker/i, "Delantero"],
+  [/defensa|back|defen/i, "Defensa"],
+  [/centrocampista|midfield/i, "Centrocampista"],
   [/forward/i, "Delantero"],
 ];
 
@@ -31,33 +30,20 @@ function age(born: string | null) {
 }
 
 export function PlayerCard({ player }: { player: SdbPlayer }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const photo = player.cutout || player.thumb;
   const years = age(player.born);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface/60">
-      <div className="relative flex h-28 items-start justify-center overflow-hidden bg-gradient-to-b from-pulpo-500/15 to-surface-2">
+      <div className="relative flex h-28 items-center justify-center bg-gradient-to-b from-pulpo-500/15 to-surface-2">
         {player.number && (
           <span className="absolute left-2 top-1.5 text-2xl font-extrabold text-foreground/15">
             {player.number}
           </span>
         )}
-        {photo && !imgFailed ? (
-          // Head-and-shoulders crop: cutouts come in club kit, so we show
-          // mostly the face (top ~55% of the image).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photo}
-            alt={player.name}
-            loading="lazy"
-            decoding="async"
-            className="h-[180%] w-auto object-cover object-top drop-shadow-md"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <User className="mt-8 h-12 w-12 text-muted-foreground" />
-        )}
+        {/* Initials avatar (no licensed photos available). */}
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-pulpo-500 to-pulpo-700 text-xl font-bold text-white">
+          {getInitials(player.name)}
+        </div>
       </div>
       <div className="p-2.5">
         <p className="truncate text-sm font-semibold">{player.name}</p>
