@@ -160,6 +160,123 @@ export async function getGroupActivity(groupId: string, competitionId: string): 
   return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// POINTS TIMELINE — per-match breakdown with running totals + rank moves.
+// ─────────────────────────────────────────────────────────────────────
+export interface TimelinePlayer {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  home: number | null;
+  away: number | null;
+  predicted: boolean;
+  points: number; // earned this match (with x2 multiplier)
+  mult: number;
+  total: number; // cumulative match points after this match
+  rank: number; // standing after this match
+  rankDelta: number; // positions gained (>0 up, <0 down)
+}
+
+export interface TimelineEntry {
+  match: MatchRow;
+  live: boolean;
+  topPoints: number; // best single-match haul (to crown the round winner)
+  players: TimelinePlayer[];
+}
+
+function ranksByTotal(totals: Map<string, number>): Map<string, number> {
+  const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+  const ranks = new Map<string, number>();
+  let rank = 0;
+  let prev: number | null = null;
+  sorted.forEach(([id, total], i) => {
+    if (prev === null || total !== prev) rank = i + 1;
+    prev = total;
+    ranks.set(id, rank);
+  });
+  return ranks;
+}
+
+/** Chronological points progression: each played match with everyone's
+ *  prediction, points earned, new running total and rank movement. */
+export async function getGroupPointsTimeline(
+  group: { id: string; competition_id: string; pts_exact: number; pts_result: number },
+  members: { id: string; display_name: string; avatar_url: string | null }[]
+): Promise<TimelineEntry[]> {
+  const supabase = await createClient();
+  const matches = await getMatches(group.competition_id);
+  const played = matches
+    .filter(
+      (m) =>
+        (m.status === "finished" || m.status === "live") &&
+        m.home_score != null &&
+        m.away_score != null
+    )
+    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime());
+  if (played.length === 0 || members.length === 0) return [];
+
+  const memberIds = members.map((m) => m.id);
+  const [{ data: preds }, { data: memberRows }] = await Promise.all([
+    supabase
+      .from("predictions")
+      .select("match_id, user_id, home_score, away_score")
+      .eq("group_id", group.id)
+      .in("match_id", played.map((m) => m.id))
+      .in("user_id", memberIds),
+    supabase.from("group_members").select("user_id, underdog_team_id").eq("group_id", group.id),
+  ]);
+
+  const underdogOf = new Map((memberRows ?? []).map((r) => [r.user_id, r.underdog_team_id]));
+  const predByMatch = new Map<string, Map<string, { h: number; a: number }>>();
+  for (const p of preds ?? []) {
+    if (!predByMatch.has(p.match_id)) predByMatch.set(p.match_id, new Map());
+    predByMatch.get(p.match_id)!.set(p.user_id, { h: p.home_score, a: p.away_score });
+  }
+
+  const pts = { exact: group.pts_exact, result: group.pts_result };
+  const totals = new Map<string, number>(members.map((m) => [m.id, 0]));
+  const entries: TimelineEntry[] = [];
+
+  for (const m of played) {
+    const prevRanks = ranksByTotal(totals);
+    const mp = predByMatch.get(m.id) ?? new Map<string, { h: number; a: number }>();
+    const rows: TimelinePlayer[] = [];
+    let topPoints = 0;
+
+    for (const mem of members) {
+      const pr = mp.get(mem.id);
+      const mult = matchMultiplier(m.home_team, m.away_team, underdogOf.get(mem.id) ?? null);
+      const points = pr ? predictionPoints(pr.h, pr.a, m.home_score, m.away_score, pts) * mult : 0;
+      totals.set(mem.id, (totals.get(mem.id) ?? 0) + points);
+      if (pr && points > topPoints) topPoints = points;
+      rows.push({
+        user_id: mem.id,
+        display_name: mem.display_name,
+        avatar_url: mem.avatar_url,
+        home: pr?.h ?? null,
+        away: pr?.a ?? null,
+        predicted: !!pr,
+        points,
+        mult,
+        total: 0,
+        rank: 0,
+        rankDelta: 0,
+      });
+    }
+
+    const newRanks = ranksByTotal(totals);
+    for (const r of rows) {
+      r.total = totals.get(r.user_id) ?? 0;
+      r.rank = newRanks.get(r.user_id) ?? 0;
+      r.rankDelta = (prevRanks.get(r.user_id) ?? r.rank) - r.rank;
+    }
+    rows.sort((a, b) => b.points - a.points || b.total - a.total || a.rank - b.rank);
+    entries.push({ match: m, live: m.status === "live", topPoints, players: rows });
+  }
+
+  return entries.reverse(); // most recent first
+}
+
 export interface GroupUpcomingMatch {
   match: MatchRow;
   /** Member ids who already predicted; null if unknown (RPC not available). */

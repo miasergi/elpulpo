@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2, Newspaper, CalendarClock, Sparkles } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, LineChart, CalendarClock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -13,12 +13,12 @@ import { Button } from "@/components/ui/button";
 import { StandingsList } from "./standings-list";
 import { GroupChat } from "./group-chat";
 import { InviteCard } from "./invite-card";
-import { ActivityFeed } from "./activity-feed";
 import { GroupBadge } from "./group-badge";
 import { GroupMatches } from "./group-matches";
 import { GroupSettings } from "./group-settings";
+import { PointsTimeline, TimelineIntro } from "./points-timeline";
 import { ScoringEditor } from "./scoring-editor";
-import type { StandingRow, ActivityItem, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
+import type { StandingRow, TimelineEntry, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
 
 type Tab = "ranking" | "matches" | "activity" | "chat" | "info";
 
@@ -31,7 +31,7 @@ export function GroupDetail({
   group,
   standings,
   members,
-  activity,
+  timeline,
   matchboard,
   bonusBoard,
   tournamentStarted,
@@ -52,7 +52,7 @@ export function GroupDetail({
   };
   standings: StandingRow[];
   members: Member[];
-  activity: ActivityItem[];
+  timeline: TimelineEntry[];
   matchboard: { upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] };
   bonusBoard: Record<string, MemberBonusInfo>;
   tournamentStarted: boolean;
@@ -83,7 +83,7 @@ export function GroupDetail({
   const tabs: { key: Tab; label: string; icon: typeof Trophy }[] = [
     { key: "ranking", label: "Ranking", icon: Trophy },
     { key: "matches", label: "Partidos", icon: CalendarClock },
-    { key: "activity", label: "Actividad", icon: Newspaper },
+    { key: "activity", label: "Progreso", icon: LineChart },
     { key: "chat", label: "Chat", icon: MessageCircle },
     { key: "info", label: "Info", icon: Info },
   ];
@@ -157,7 +157,12 @@ export function GroupDetail({
           />
         )}
 
-        {tab === "activity" && <ActivityFeed items={activity} />}
+        {tab === "activity" && (
+          <>
+            <TimelineIntro />
+            <PointsTimeline entries={timeline} currentUserId={currentUserId} />
+          </>
+        )}
 
         {tab === "chat" && <GroupChat groupId={group.id} currentUserId={currentUserId} />}
 
