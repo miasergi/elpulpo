@@ -10,13 +10,13 @@ import { PlayerCard } from "@/components/teams/player-card";
 export const dynamic = "force-dynamic";
 
 const BUCKETS = [
-  { key: "gk", label: "Porteros", test: /goalkeeper/i },
-  { key: "def", label: "Defensas", test: /back|defen/i },
-  { key: "mid", label: "Centrocampistas", test: /midfield/i },
-  { key: "fwd", label: "Delanteros", test: /forward|wing|striker|attack(?!ing midfield)/i },
+  { key: "gk", label: "Porteros", test: /portero|arquero|goalkeeper/i },
+  { key: "def", label: "Defensas", test: /defensa|back|defen/i },
+  { key: "mid", label: "Centrocampistas", test: /centrocampista|midfield/i },
+  { key: "fwd", label: "Delanteros", test: /delantero|forward|wing|striker|attack/i },
 ] as const;
 
-function bucketOf(p: SdbPlayer) {
+function bucketOf(p: { position: string | null }) {
   const pos = p.position ?? "";
   for (const b of BUCKETS) if (b.test.test(pos)) return b.key;
   return "fwd";
@@ -34,7 +34,30 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     .maybeSingle();
   if (!team) notFound();
 
-  const players = team.external_id ? await getTeamPlayers(team.external_id) : [];
+  // Official FIFA roster from our DB; falls back to TheSportsDB's featured
+  // players if the squad hasn't been synced yet.
+  const { data: dbPlayers } = await supabase
+    .from("players")
+    .select("id,name,number,position,birth_date,photo_url")
+    .eq("team_id", team.id)
+    .order("number", { ascending: true, nullsFirst: false });
+
+  const players: SdbPlayer[] =
+    dbPlayers && dbPlayers.length > 0
+      ? dbPlayers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          position: p.position,
+          club: null,
+          number: p.number != null ? String(p.number) : null,
+          born: p.birth_date,
+          cutout: p.photo_url,
+          thumb: null,
+        }))
+      : team.external_id
+        ? await getTeamPlayers(team.external_id)
+        : [];
+
   const grouped = BUCKETS.map((b) => ({
     ...b,
     players: players.filter((p) => bucketOf(p) === b.key),
@@ -90,7 +113,9 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
             </section>
           ))}
           <p className="text-center text-[11px] text-muted-foreground">
-            Jugadores destacados · datos de TheSportsDB
+            {dbPlayers && dbPlayers.length > 0
+              ? "Convocatoria oficial FIFA"
+              : "Jugadores destacados · datos de TheSportsDB"}
           </p>
         </div>
       )}

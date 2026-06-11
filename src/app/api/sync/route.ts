@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncWorldCupSportsDB } from "@/lib/sync";
+import { syncSquadsFIFA } from "@/lib/fifa";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,6 +19,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
+    // ?squads=1 → sync official FIFA rosters instead of fixtures/results.
+    if (new URL(request.url).searchParams.get("squads")) {
+      const result = await syncSquadsFIFA(createServiceClient());
+      return NextResponse.json({ ok: true, ...result });
+    }
     const result = await syncWorldCupSportsDB();
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {

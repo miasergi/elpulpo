@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { differenceInCalendarDays } from "date-fns";
 import { Trophy, Radio, CalendarDays } from "lucide-react";
 import { TeamFlag, type TeamLite } from "@/components/match/team-flag";
 import type { MatchRow } from "@/lib/queries";
@@ -19,7 +18,11 @@ export function WorldCupHero({
 
   const now = new Date();
   const first = new Date(matches[0].kickoff_at);
-  const daysLeft = differenceInCalendarDays(first, now);
+  // Calendar-day difference in the app timezone (dayKey is tz-aware).
+  const daysLeft = Math.round(
+    (Date.parse(dayKey(matches[0].kickoff_at)) - Date.parse(dayKey(now.toISOString()))) /
+      86_400_000
+  );
   const started = first <= now;
 
   const finished = matches.filter((m) => m.status === "finished").length;

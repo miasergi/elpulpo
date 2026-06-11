@@ -99,6 +99,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["groups"]["Row"]>;
         Relationships: Rels;
       };
+      players: {
+        Row: {
+          id: string;
+          team_id: string;
+          external_id: string;
+          name: string;
+          number: number | null;
+          position: string | null;
+          birth_date: string | null;
+          photo_url: string | null;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["players"]["Row"]> & { team_id: string; external_id: string; name: string };
+        Update: Partial<Database["public"]["Tables"]["players"]["Row"]>;
+        Relationships: Rels;
+      };
       group_members: {
         Row: {
           group_id: string;
