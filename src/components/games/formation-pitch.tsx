@@ -1,9 +1,9 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { TeamFlag, type TeamLite } from "@/components/match/team-flag";
+import { TeamFlag } from "@/components/match/team-flag";
 import { cn } from "@/lib/utils";
-import type { Formation, SquadPlayer } from "@/lib/games/eleven";
+import type { Formation, PickedPlayer } from "@/lib/games/eleven";
 
 export function shortName(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -17,21 +17,22 @@ function ratingColor(r: number) {
   return "bg-surface-3 text-muted";
 }
 
-/** A vertical football pitch with the 11 slots placed by formation. */
+/** A vertical football pitch with the 11 slots placed by formation.
+ *  Cada jugador lleva su propia bandera (es un 11 de 11 países). */
 export function FormationPitch({
   formation,
   picks,
-  teamFlag,
   onSlot,
   activeIndex = null,
   interactive = false,
+  showMedias = true,
 }: {
   formation: Formation;
-  picks: (SquadPlayer | null)[];
-  teamFlag: TeamLite;
+  picks: (PickedPlayer | null)[];
   onSlot?: (index: number) => void;
   activeIndex?: number | null;
   interactive?: boolean;
+  showMedias?: boolean;
 }) {
   return (
     <div className="relative aspect-[3/4.2] w-full overflow-hidden rounded-2xl border border-pitch-600/40 shadow-inner">
@@ -73,17 +74,23 @@ export function FormationPitch({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.photo} alt="" className="h-full w-full object-cover object-top" />
                   ) : (
-                    <TeamFlag team={teamFlag} size={44} />
+                    <TeamFlag team={p.team} size={44} />
                   )}
                 </span>
-                <span
-                  className={cn(
-                    "absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums shadow",
-                    ratingColor(p.rating)
-                  )}
-                >
-                  {p.rating}
+                {/* Banderita del país del jugador */}
+                <span className="absolute -bottom-1 -left-1 overflow-hidden rounded-full ring-2 ring-surface">
+                  <TeamFlag team={p.team} size={16} />
                 </span>
+                {showMedias && (
+                  <span
+                    className={cn(
+                      "absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums shadow",
+                      ratingColor(p.rating)
+                    )}
+                  >
+                    {p.rating}
+                  </span>
+                )}
               </span>
             ) : (
               <span

@@ -12,8 +12,8 @@ import {
   type Formation,
   type GroupRow,
   type LineupStrength,
+  type PickedPlayer,
   type RunResult,
-  type SquadPlayer,
   type TeamLite,
 } from "@/lib/games/eleven";
 import { FormationPitch } from "./formation-pitch";
@@ -37,20 +37,22 @@ type Scene =
 
 export function SimScreen({
   run,
-  teamFlag,
+  userTeam,
   formation,
   picks,
   strength,
+  showMedias,
   onReplay,
-  onNewTeam,
+  onNewGame,
 }: {
   run: RunResult;
-  teamFlag: TeamLite;
+  userTeam: TeamLite;
   formation: Formation;
-  picks: (SquadPlayer | null)[];
+  picks: (PickedPlayer | null)[];
   strength: LineupStrength;
+  showMedias: boolean;
   onReplay: () => void;
-  onNewTeam: () => void;
+  onNewGame: () => void;
 }) {
   const scenes = useMemo<Scene[]>(() => {
     const s: Scene[] = [{ t: "intro" }];
@@ -108,7 +110,7 @@ export function SimScreen({
       <SceneProgress scenes={scenes} idx={idx} run={run} />
 
       <div className="mt-3">
-        {scene.t === "intro" && <GroupIntro run={run} teamFlag={teamFlag} />}
+        {scene.t === "intro" && <GroupIntro run={run} userTeam={userTeam} />}
 
         {scene.t === "group" && (
           <MatchReveal
@@ -138,12 +140,12 @@ export function SimScreen({
         {scene.t === "final" && (
           <ResultCard
             run={run}
-            teamFlag={teamFlag}
             formation={formation}
             picks={picks}
             strength={strength}
+            showMedias={showMedias}
             onReplay={onReplay}
-            onNewTeam={onNewTeam}
+            onNewGame={onNewGame}
           />
         )}
       </div>
@@ -190,7 +192,7 @@ function SceneProgress({ scenes, idx, run }: { scenes: Scene[]; idx: number; run
   );
 }
 
-function GroupIntro({ run, teamFlag }: { run: RunResult; teamFlag: TeamLite }) {
+function GroupIntro({ run, userTeam }: { run: RunResult; userTeam: TeamLite }) {
   const rivals = run.groupMatches.map((m) => m.away.team);
   const teams = [run.user.team, ...rivals];
   return (
@@ -203,12 +205,12 @@ function GroupIntro({ run, teamFlag }: { run: RunResult; teamFlag: TeamLite }) {
             key={t.id}
             className={cn(
               "flex items-center gap-2 rounded-lg border p-2.5",
-              t.id === teamFlag.id ? "border-pulpo-400 bg-pulpo-500/15" : "border-border bg-surface/50"
+              t.id === userTeam.id ? "border-pulpo-400 bg-pulpo-500/15" : "border-border bg-surface/50"
             )}
           >
             <TeamFlag team={t} size={34} />
             <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{t.name}</span>
-            {t.id === teamFlag.id && <span className="text-[10px] font-bold text-pulpo-300">TÚ</span>}
+            {t.id === userTeam.id && <span className="text-[10px] font-bold text-pulpo-300">TÚ</span>}
           </div>
         ))}
       </div>
@@ -272,20 +274,20 @@ function Row({ r, pos, qualifies }: { r: GroupRow; pos: number; qualifies: boole
 
 function ResultCard({
   run,
-  teamFlag,
   formation,
   picks,
   strength,
+  showMedias,
   onReplay,
-  onNewTeam,
+  onNewGame,
 }: {
   run: RunResult;
-  teamFlag: TeamLite;
   formation: Formation;
-  picks: (SquadPlayer | null)[];
+  picks: (PickedPlayer | null)[];
   strength: LineupStrength;
+  showMedias: boolean;
   onReplay: () => void;
-  onNewTeam: () => void;
+  onNewGame: () => void;
 }) {
   const emoji = resultEmoji(run);
   const glow = run.champion
@@ -299,13 +301,10 @@ function ResultCard({
       <div className={cn("relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 text-center", glow)}>
         <div className="text-6xl">{emoji}</div>
         <h2 className="mt-2 text-2xl font-black leading-tight">{run.reachedLabel}</h2>
-        <div className="mt-2 flex items-center justify-center gap-2">
-          <TeamFlag team={teamFlag} size={26} />
-          <span className="font-bold">{teamFlag.name}</span>
-        </div>
+        <p className="mt-1 text-sm font-semibold text-muted">Tu 11 de 11 países</p>
         <div className="mt-3 flex justify-center gap-2 text-[11px]">
-          <Stat label="Ataque" v={strength.attack} />
-          <Stat label="Defensa" v={strength.defense} />
+          {showMedias && <Stat label="Media" v={strength.avgRating} />}
+          {showMedias && <Stat label="Ataque" v={strength.attack} />}
           <Stat label="Química" v={`${strength.chemistry}%`} />
         </div>
       </div>
@@ -338,18 +337,18 @@ function ResultCard({
       <details className="rounded-2xl border border-border bg-surface/60 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-pulpo-200">Ver mi 11 ({formation.name})</summary>
         <div className="mt-3">
-          <FormationPitch formation={formation} picks={picks} teamFlag={teamFlag} />
+          <FormationPitch formation={formation} picks={picks} showMedias={showMedias} />
         </div>
       </details>
 
-      <ShareEleven run={run} teamFlag={teamFlag} emoji={emoji} strength={strength} />
+      <ShareEleven run={run} emoji={emoji} strength={strength} showMedias={showMedias} />
 
       <div className="flex gap-2">
         <Button size="full" variant="secondary" onClick={onReplay} className="flex-1">
           <RotateCcw className="h-4 w-4" /> Otra vez
         </Button>
-        <Button size="full" variant="outline" onClick={onNewTeam} className="flex-1">
-          <Dice5 className="h-4 w-4" /> Otra selección
+        <Button size="full" variant="outline" onClick={onNewGame} className="flex-1">
+          <Dice5 className="h-4 w-4" /> Nuevo 11
         </Button>
       </div>
     </div>
@@ -384,22 +383,23 @@ function PathRow({ label, detail, state }: { label: string; detail: string; stat
 
 function ShareEleven({
   run,
-  teamFlag,
   emoji,
   strength,
+  showMedias,
 }: {
   run: RunResult;
-  teamFlag: TeamLite;
   emoji: string;
   strength: LineupStrength;
+  showMedias: boolean;
 }) {
   const [busy, setBusy] = useState(false);
 
   const imageUrl =
-    `/api/og/eleven?name=${encodeURIComponent(teamFlag.name)}&code=${encodeURIComponent(teamFlag.code ?? "")}` +
+    `/api/og/eleven?name=${encodeURIComponent("Mi 11 de 11 países")}` +
     `&res=${encodeURIComponent(run.reachedLabel)}&emoji=${encodeURIComponent(emoji)}` +
-    `&ov=${strength.overall}&chem=${strength.chemistry}`;
-  const text = `Llevé a ${teamFlag.name} a "${run.reachedLabel}" ${emoji} en El Pulpo. ¿Mejoras mi 11? elpulpo.vercel.app`;
+    (showMedias ? `&ov=${strength.avgRating}` : "") +
+    `&chem=${strength.chemistry}`;
+  const text = `Monté un 11 con jugadores de 11 países distintos y llegó a "${run.reachedLabel}" ${emoji} en El Pulpo. ¿Mejoras mi 11? elpulpo.vercel.app`;
 
   async function share() {
     setBusy(true);

@@ -94,7 +94,7 @@ function TeamSide({
       <TeamFlag team={flag} size={52} />
       <p className={cn("max-w-full truncate text-xs font-bold", highlight && "text-pulpo-200")}>{name}</p>
       <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold tabular-nums text-muted">
-        FUERZA {overall}
+        MEDIA {overall}
       </span>
     </div>
   );

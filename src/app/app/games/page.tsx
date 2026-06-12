@@ -27,7 +27,7 @@ export default async function GamesPage() {
           <div className="min-w-0">
             <h2 className="text-lg font-extrabold">El 11 del mundial</h2>
             <p className="text-sm text-muted">
-              Te toca una selección al azar. Monta tu 11 y vive su Mundial partido a partido.
+              Gira la ruleta de países y ficha 11 jugadores de 11 selecciones. Luego juega su Mundial partido a partido.
             </p>
           </div>
         </div>

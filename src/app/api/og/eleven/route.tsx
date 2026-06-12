@@ -6,11 +6,11 @@ export const runtime = "edge";
 // /api/og/eleven?name=España&code=ESP&res=Campeón%20del%20mundo&emoji=🏆&ov=88&chem=64
 export function GET(request: Request) {
   const u = new URL(request.url);
-  const name = (u.searchParams.get("name") || "Tu selección").slice(0, 28);
+  const name = (u.searchParams.get("name") || "Mi 11 del mundial").slice(0, 28);
   const code = (u.searchParams.get("code") || "").slice(0, 4);
   const res = (u.searchParams.get("res") || "Mundial").slice(0, 40);
   const emoji = (u.searchParams.get("emoji") || "⚽").slice(0, 4);
-  const ov = u.searchParams.get("ov") || "–";
+  const ov = u.searchParams.get("ov"); // media (puede no compartirse)
   const chem = u.searchParams.get("chem") || "0";
 
   return new ImageResponse(
@@ -60,7 +60,7 @@ export function GET(request: Request) {
           </div>
 
           <div style={{ display: "flex", gap: "16px", marginTop: "34px" }}>
-            <Pill label="Fuerza" value={ov} />
+            {ov && <Pill label="Media" value={ov} />}
             <Pill label="Química" value={`${chem}%`} />
           </div>
         </div>

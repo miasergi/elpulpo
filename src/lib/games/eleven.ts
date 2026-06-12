@@ -36,6 +36,12 @@ export interface SquadPlayer {
   rating: number;
 }
 
+/** Un jugador ya fichado para el 11: arrastra de qué selección salió
+ *  (para la bandera en el campo y la regla de "11 países distintos"). */
+export interface PickedPlayer extends SquadPlayer {
+  team: TeamLite;
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Ratings base de cada selección (≈ fuerza estilo ranking FIFA, 0-100).
 // Es el "esqueleto" del equipo; tu alineación lo modula (ataque/defensa).
@@ -186,42 +192,36 @@ export interface LineupStrength {
   avgRating: number;
 }
 
-export function lineupStrength(
-  picks: (SquadPlayer | null)[],
-  formation: Formation,
-  teamCode: string | null
-): LineupStrength {
-  const base = teamRating(teamCode);
+export function lineupStrength(picks: (SquadPlayer | null)[], formation: Formation): LineupStrength {
   const chosen = picks.filter(Boolean) as SquadPlayer[];
   if (chosen.length === 0) {
-    return { attack: base, defense: base, overall: base, chemistry: 0, avgRating: base };
+    return { attack: 0, defense: 0, overall: 0, chemistry: 0, avgRating: 0 };
   }
 
+  const avgRating = chosen.reduce((a, p) => a + p.rating, 0) / chosen.length;
   const ratingOf = (group: "att" | "def") => {
     const xs = formation.slots
       .map((slot, i) => ({ slot, p: picks[i] }))
       .filter((x) => x.p && lineGroup(x.slot.line) === group)
       .map((x) => x.p!.rating);
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : base;
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : avgRating;
   };
 
   const attackers = ratingOf("att");
   const defenders = ratingOf("def");
-  const avgRating = chosen.reduce((a, p) => a + p.rating, 0) / chosen.length;
 
-  // Química: jugadores que comparten club con al menos otro del 11.
+  // Química: jugadores que comparten club con al menos otro del 11
+  // (raro en un 11 de 11 países, pero posible → bonus oculto al rendir).
   const counts = new Map<string, number>();
   for (const p of chosen) if (p.club) counts.set(p.club, (counts.get(p.club) ?? 0) + 1);
   const linked = chosen.filter((p) => p.club && (counts.get(p.club) ?? 0) >= 2).length;
   const chemistry = Math.round((linked / 11) * 100);
   const chemBonus = (chemistry / 100) * 4;
 
-  const attack = clamp(0.5 * base + 0.5 * attackers + chemBonus, 40, 99);
-  const defense = clamp(0.5 * base + 0.5 * defenders + chemBonus, 40, 99);
   return {
-    attack: Math.round(attack),
-    defense: Math.round(defense),
-    overall: Math.round((attack + defense) / 2),
+    attack: Math.round(clamp(attackers + chemBonus, 40, 99)),
+    defense: Math.round(clamp(defenders + chemBonus, 40, 99)),
+    overall: Math.round(avgRating),
     chemistry,
     avgRating: Math.round(avgRating),
   };
