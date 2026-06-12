@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat, Shirt } from "lucide-react";
+import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat, Shirt, Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import {
   getMyGroups,
@@ -7,8 +7,8 @@ import {
   getActiveGroup,
   getMatches,
   getMyPredictions,
-  getMyBonusCount,
 } from "@/lib/queries";
+import { getBonusProgress } from "@/lib/bonus";
 import { getMyStandings, getGroupMembers, getTodayLive } from "@/lib/groups";
 import { PulpoMark } from "@/components/brand/logo";
 import { GettingStarted } from "@/components/app/getting-started";
@@ -27,18 +27,23 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { profile } = await requireProfile();
-  const [groups, competition, activeGroup, predicted, bonusCount] = await Promise.all([
+  const [groups, competition, activeGroup, predicted] = await Promise.all([
     getMyGroups(profile.id),
     getActiveCompetition(),
     getActiveGroup(profile.active_group_id),
     getMyPredictions(profile.id, profile.active_group_id),
-    getMyBonusCount(profile.id, profile.active_group_id),
   ]);
 
-  const [standings, allMatches] = await Promise.all([
+  const [standings, allMatches, bonus] = await Promise.all([
     getMyStandings(groups.map((g) => g.id!), profile.id),
     competition ? getMatches(competition.id) : Promise.resolve([]),
+    competition
+      ? getBonusProgress(competition.id, profile.id, profile.active_group_id)
+      : Promise.resolve({ total: 0, answered: 0, pending: 0, deadline: null as string | null }),
   ]);
+  // Urge el bonus solo a quien tiene grupo, sigue abierto y le falta alguno.
+  const bonusOpen = !!bonus.deadline && new Date(bonus.deadline) > new Date();
+  const bonusPending = !!activeGroup && bonusOpen && bonus.pending > 0;
 
   // Today's matches + the active group's live points race.
   let today: Awaited<ReturnType<typeof getTodayLive>> = [];
@@ -76,10 +81,36 @@ export default async function DashboardPage() {
 
       {today.length > 0 && <LiveToday matches={today} currentUserId={profile.id} />}
 
+      {/* Recordatorio del bonus: solo si aún le faltan por configurar. */}
+      {bonusPending && (
+        <Link
+          href="/app/bonus"
+          className="relative mt-5 flex items-center gap-3 overflow-hidden rounded-lg border border-warning/60 bg-warning/10 p-3.5 shadow-lg shadow-warning/10"
+        >
+          <span className="absolute right-3 top-3 flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning/70" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
+          </span>
+          <div className="rounded-full bg-warning/20 p-2">
+            <Sparkles className="h-5 w-5 text-warning" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-warning">
+              ⚡ Te {bonus.pending === 1 ? "queda 1 bonus del torneo" : `quedan ${bonus.pending} bonus del torneo`} sin poner
+            </p>
+            <p className="text-xs text-muted">
+              Hasta <span className="font-semibold text-foreground">{kickoffLabel(bonus.deadline!).toLowerCase()}</span> ·
+              campeón, goleador… puntos extra
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
+
       <GettingStarted
         hasGroup={groups.length > 0}
         hasPrediction={predicted.size > 0}
-        hasBonus={bonusCount > 0}
+        hasBonus={bonus.answered > 0}
       />
 
       {/* Minijuegos — descubrimiento del nuevo modo */}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Trophy, ChevronRight, CalendarX2, Repeat, Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getActiveCompetition, getActiveGroup, getMatches, getMyPredictions, getMyMembership } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/server";
+import { getBonusProgress } from "@/lib/bonus";
 import { MatchesBrowser } from "@/components/match/matches-browser";
 import { PageHeader } from "@/components/app/page-header";
 import { GroupBadge } from "@/components/groups/group-badge";
@@ -10,21 +10,6 @@ import { AdBanner } from "@/components/ads/ad-banner";
 import { kickoffLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-/** Earliest deadline among the still-open bonus markets (for the reopened banner). */
-async function getBonusDeadline(competitionId: string): Promise<string | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("bonus_markets")
-    .select("closes_at")
-    .eq("competition_id", competitionId)
-    .eq("resolved", false)
-    .not("closes_at", "is", null)
-    .order("closes_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.closes_at ?? null;
-}
 
 export default async function MatchesPage() {
   const { profile } = await requireProfile();
@@ -40,13 +25,15 @@ export default async function MatchesPage() {
   }
 
   const group = await getActiveGroup(profile.active_group_id);
-  const [matches, predictions, membership, bonusDeadline] = await Promise.all([
+  const [matches, predictions, membership, bonus] = await Promise.all([
     getMatches(competition.id),
     getMyPredictions(profile.id, group?.id ?? null),
     getMyMembership(profile.id, group?.id ?? null),
-    getBonusDeadline(competition.id),
+    getBonusProgress(competition.id, profile.id, group?.id ?? null),
   ]);
-  const bonusOpen = !!bonusDeadline && new Date(bonusDeadline) > new Date();
+  // Solo "urge" si el bonus sigue abierto y al jugador le falta alguno.
+  const bonusOpen = !!bonus.deadline && new Date(bonus.deadline) > new Date();
+  const bonusPending = bonusOpen && bonus.pending > 0;
 
   return (
     <div className="px-5">
@@ -84,39 +71,45 @@ export default async function MatchesPage() {
         </Link>
       )}
 
-      {/* Bonus CTA — resaltado: aún hay gente sin configurar sus apuestas. */}
+      {/* Bonus CTA — urge solo a quien aún le falta algún bonus por poner. */}
       <Link
         href="/app/bonus"
         className={
-          bonusOpen
+          bonusPending
             ? "relative mb-1 mt-2 flex items-center gap-3 overflow-hidden rounded-lg border border-warning/60 bg-warning/10 p-3.5 shadow-lg shadow-warning/10"
             : "mb-1 mt-2 flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-pulpo-500/10 p-3.5"
         }
       >
-        {bonusOpen && (
+        {bonusPending && (
           <span className="absolute right-3 top-3 flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning/70" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
           </span>
         )}
-        <div className={bonusOpen ? "rounded-full bg-warning/20 p-2" : ""}>
-          {bonusOpen ? (
+        <div className={bonusPending ? "rounded-full bg-warning/20 p-2" : ""}>
+          {bonusPending ? (
             <Sparkles className="h-5 w-5 text-warning" />
           ) : (
             <Trophy className="h-5 w-5 text-pulpo-300" />
           )}
         </div>
         <div className="flex-1">
-          {bonusOpen ? (
+          {bonusPending ? (
             <>
-              <p className="text-sm font-bold text-warning">⚡ ¡Pon tu bonus antes de que cierre!</p>
+              <p className="text-sm font-bold text-warning">
+                ⚡ Te {bonus.pending === 1 ? "queda 1 bonus" : `quedan ${bonus.pending} bonus`} por poner
+              </p>
               <p className="text-xs text-muted">
-                Reabierto hasta <span className="font-semibold text-foreground">{kickoffLabel(bonusDeadline!).toLowerCase()}</span> · campeón, goleador… puntos extra
+                Reabierto hasta{" "}
+                <span className="font-semibold text-foreground">{kickoffLabel(bonus.deadline!).toLowerCase()}</span> ·
+                campeón, goleador… puntos extra
               </p>
             </>
           ) : (
             <>
-              <p className="text-sm font-semibold">Bonus del torneo</p>
+              <p className="text-sm font-semibold">
+                Bonus del torneo{bonus.total > 0 && bonus.pending === 0 ? " · ¡todo listo! ✅" : ""}
+              </p>
               <p className="text-xs text-muted">Campeón, goleador, ganadores de grupo… puntos extra</p>
             </>
           )}

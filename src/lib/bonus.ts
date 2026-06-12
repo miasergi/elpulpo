@@ -21,6 +21,43 @@ export async function getBonusMarkets(competitionId: string, userId: string, gro
   return { markets: markets ?? [], answers };
 }
 
+/** Cuántos bonus tiene aún por configurar el usuario en su grupo activo.
+ *  `pending` = mercados abiertos (sin resolver y sin cerrar) sin responder. */
+export async function getBonusProgress(
+  competitionId: string,
+  userId: string,
+  groupId: string | null
+): Promise<{ total: number; answered: number; pending: number; deadline: string | null }> {
+  const supabase = await createClient();
+  const { data: markets } = await supabase
+    .from("bonus_markets")
+    .select("id, closes_at, resolved")
+    .eq("competition_id", competitionId);
+
+  const now = Date.now();
+  const open = (markets ?? []).filter(
+    (m) => !m.resolved && (!m.closes_at || new Date(m.closes_at).getTime() > now)
+  );
+  const total = open.length;
+  const deadline = open
+    .map((m) => m.closes_at)
+    .filter((c): c is string => !!c)
+    .sort()
+    .at(-1) ?? null;
+
+  let answered = 0;
+  if (groupId && open.length) {
+    const { data } = await supabase
+      .from("bonus_predictions")
+      .select("market_id")
+      .eq("user_id", userId)
+      .eq("group_id", groupId)
+      .in("market_id", open.map((m) => m.id));
+    answered = new Set((data ?? []).map((r) => r.market_id)).size;
+  }
+  return { total, answered, pending: Math.max(0, total - answered), deadline };
+}
+
 export interface CompetitionTeam {
   id: string;
   name: string;
