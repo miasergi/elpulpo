@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
+import { kickoffLabel } from "@/lib/format";
 import { getActiveCompetition, getActiveGroup, getMatches, getMyMembership } from "@/lib/queries";
 import { getBonusMarkets, getCompetitionTeams } from "@/lib/bonus";
 import { BackHeader } from "@/components/app/back-header";
@@ -31,6 +33,12 @@ export default async function BonusPage() {
   ]);
   const firstKickoff = matches[0]?.kickoff_at;
   const tournamentStarted = !!firstKickoff && new Date(firstKickoff) <= new Date();
+  // Latest deadline among still-open markets, to tell people how long they have.
+  const openDeadline = markets
+    .filter((m) => !m.resolved && m.closes_at && new Date(m.closes_at) > new Date())
+    .map((m) => m.closes_at!)
+    .sort()
+    .at(-1);
 
   if (!group) {
     return (
@@ -50,9 +58,20 @@ export default async function BonusPage() {
   return (
     <div className="px-5">
       <BackHeader title="Bonus del torneo" />
-      <p className="mb-2 text-sm text-muted">
-        Acierta estas preguntas para sumar puntos extra. Se cierran al empezar el torneo.
-      </p>
+      {openDeadline ? (
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <p className="text-muted">
+            <span className="font-semibold text-warning">¡Plazo ampliado!</span> Tienes hasta{" "}
+            <span className="font-semibold text-foreground">{kickoffLabel(openDeadline).toLowerCase()}</span> para
+            configurar tus apuestas. Acierta y suma puntos extra.
+          </p>
+        </div>
+      ) : (
+        <p className="mb-2 text-sm text-muted">
+          Acierta estas preguntas para sumar puntos extra. Se cierran al empezar el torneo.
+        </p>
+      )}
       <Link
         href="/app/profile"
         className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 text-xs text-muted"

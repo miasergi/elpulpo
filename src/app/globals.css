@@ -158,6 +158,28 @@ body::before {
 }
 .animate-float { animation: pulpo-float 4.5s ease-in-out infinite; }
 
+/* Confetti (minijuego "El 11 del mundial") */
+@keyframes pulpo-confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.9; }
+}
+.animate-confetti { animation: pulpo-confetti linear forwards; }
+
+/* Marcador que entra con un "pop" */
+@keyframes pulpo-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: pulpo-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Latido suave para llamadas a la acción */
+@keyframes pulpo-heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.animate-heartbeat { animation: pulpo-heartbeat 1.6s ease-in-out infinite; }
+
 /* Brand gradient text helper */
 .text-brand-gradient {
   background: linear-gradient(95deg, var(--orange-400), var(--pink-400) 55%, var(--teal-300));

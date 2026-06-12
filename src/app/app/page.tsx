@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat } from "lucide-react";
+import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat, Shirt } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import {
   getMyGroups,
@@ -81,6 +81,24 @@ export default async function DashboardPage() {
         hasPrediction={predicted.size > 0}
         hasBonus={bonusCount > 0}
       />
+
+      {/* Minijuegos — descubrimiento del nuevo modo */}
+      <Link
+        href="/app/games/eleven"
+        className="group relative mt-6 flex items-center gap-3 overflow-hidden rounded-lg border border-pulpo-500/40 bg-gradient-to-r from-pulpo-500/15 to-primary/10 p-3.5"
+      >
+        <span className="absolute right-3 top-2.5 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
+          Nuevo
+        </span>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-pulpo-500/20 text-pulpo-200">
+          <Shirt className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold">El 11 del mundial</p>
+          <p className="text-xs text-muted">Monta tu 11 y vive su Mundial partido a partido</p>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
 
       {/* Active group */}
       <section className="mt-7">
