@@ -187,7 +187,7 @@ export function ElevenGame({
 
   function startSimulation() {
     if (!complete) return;
-    setRun(simulateRun(userTeam, strength, teams, seed));
+    setRun(simulateRun(userTeam, strength, teams, seed, picks));
     playTick("success");
     haptic(22);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -366,7 +366,7 @@ export function ElevenGame({
       {filled > 0 && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <StatBar label="Media" value={strength.avgRating} hidden={!showMedias} />
-          <StatBar label="Química" value={strength.chemistry} suffix="%" tone="pink" />
+          <ChemBar chemistry={strength.chemistry} clubLinks={strength.clubLinks} />
           <StatBar label="Ataque" value={strength.attack} hidden={!showMedias} />
           <StatBar label="Defensa" value={strength.defense} hidden={!showMedias} />
         </div>
@@ -425,6 +425,7 @@ export function ElevenGame({
             line={formation.slots[pendingSlot].line}
             slotLabel={formation.slots[pendingSlot].label}
             showMedias={showMedias}
+            existingPicks={picks}
             onPick={handlePlayerPicked}
             onBack={() => setPhase("pick_slot")}
             onClose={() => {
@@ -475,6 +476,25 @@ function StatBar({
           style={{ width: hidden ? "0%" : `${pct}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function ChemBar({ chemistry, clubLinks }: { chemistry: number; clubLinks: number }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface/50 p-2.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[11px] font-medium text-muted">Química</span>
+        <span className="text-sm font-extrabold tabular-nums text-pink-400">{chemistry}%</span>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
+        <div className="h-full rounded-full bg-pink-500 transition-all" style={{ width: `${chemistry}%` }} />
+      </div>
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        {clubLinks > 0
+          ? `🔗 ${clubLinks} par${clubLinks !== 1 ? "es" : ""} de club (+${chemistry}%)`
+          : "Pon compañeros de club para subir"}
+      </p>
     </div>
   );
 }

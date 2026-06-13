@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X, Search, ChevronLeft } from "lucide-react";
 import { TeamFlag } from "@/components/match/team-flag";
 import { cn } from "@/lib/utils";
-import type { Line, SquadPlayer, TeamLite } from "@/lib/games/eleven";
+import type { Line, SquadPlayer, TeamLite, PickedPlayer } from "@/lib/games/eleven";
 
 const LINE_LABEL: Record<Line, string> = {
   gk: "portero",
@@ -21,6 +21,7 @@ export function PlayerPicker({
   line,
   slotLabel,
   showMedias,
+  existingPicks,
   onPick,
   onBack,
   onClose,
@@ -30,11 +31,19 @@ export function PlayerPicker({
   line: Line;
   slotLabel: string;
   showMedias: boolean;
+  existingPicks?: (PickedPlayer | null)[];
   onPick: (p: SquadPlayer) => void;
   onBack: () => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
+  // Clubes que ya tienen al menos un jugador en el 11 → mostrar badge de conexión
+  const linkedClubs = new Set(
+    (existingPicks ?? [])
+      .filter(Boolean)
+      .map((p) => p!.club)
+      .filter(Boolean) as string[]
+  );
   const options = squad
     .filter((p) => p.line === line)
     .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || (p.club ?? "").toLowerCase().includes(q.toLowerCase()));
@@ -92,7 +101,14 @@ export function PlayerPicker({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{p.name}</span>
-                  {p.club && <span className="block truncate text-[11px] text-muted-foreground">{p.club}</span>}
+                  {p.club && (
+                    <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                      {linkedClubs.has(p.club) && (
+                        <span className="rounded bg-pitch-500/20 px-1 text-[10px] font-bold text-pitch-400">🔗 +química</span>
+                      )}
+                      {p.club}
+                    </span>
+                  )}
                 </span>
                 {showMedias && <RatingPill rating={p.rating} />}
               </button>

@@ -5,7 +5,7 @@ import { TeamFlag } from "@/components/match/team-flag";
 import { Avatar } from "@/components/ui/avatar";
 import { playTick, haptic } from "@/lib/sound";
 import { cn } from "@/lib/utils";
-import type { SimMatch } from "@/lib/games/eleven";
+import type { MatchEvent, SimMatch } from "@/lib/games/eleven";
 
 export function MatchReveal({
   match,
@@ -87,6 +87,10 @@ export function MatchReveal({
           </span>
         </div>
       )}
+
+      {revealed && match.events.length > 0 && (
+        <EventLog events={match.events} homeCode={match.home.team.code} awayCode={match.away.team.code} />
+      )}
     </div>
   );
 }
@@ -134,6 +138,32 @@ function Suspense() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function EventLog({
+  events,
+  homeCode,
+  awayCode,
+}: {
+  events: MatchEvent[];
+  homeCode: string | null;
+  awayCode: string | null;
+}) {
+  return (
+    <div className="mt-3 animate-pop space-y-1 border-t border-border/30 pt-3">
+      {events.map((e, i) => (
+        <div key={i} className={cn("flex items-baseline gap-1.5 text-xs", e.forHome ? "text-foreground" : "text-muted")}>
+          <span className="shrink-0">⚽</span>
+          <span className="w-7 shrink-0 tabular-nums text-muted-foreground">{e.minute}&apos;</span>
+          <span className={cn("shrink-0 rounded px-1 text-[10px] font-bold", e.forHome ? "bg-pulpo-500/20 text-pulpo-300" : "bg-surface-3 text-muted-foreground")}>
+            {e.forHome ? (homeCode ?? "TÚ") : (awayCode ?? "RIV")}
+          </span>
+          <span className="font-semibold">{e.scorer}</span>
+          {e.assist && <span className="text-muted-foreground/70">(as. {e.assist})</span>}
+        </div>
+      ))}
     </div>
   );
 }

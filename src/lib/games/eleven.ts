@@ -90,14 +90,142 @@ function hash(s: string): number {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, "").trim();
+}
+
+export function shortName(full: string): string {
+  const p = full.trim().split(/\s+/);
+  return p.length > 1 ? p.at(-1)! : p[0];
+}
+
+// Ratings basados en FC 26 para jugadores conocidos del Mundial (tienen precedencia sobre la heurística)
+const FC26_RAW: [string, number][] = [
+  // GK
+  ["alisson", 88], ["ederson", 86], ["ter stegen", 89], ["courtois", 90], ["maignan", 87],
+  ["oblak", 88], ["sommer", 84], ["livakovic", 83], ["pickford", 82], ["bono", 83], ["muslera", 80],
+  // DEF
+  ["van dijk", 88], ["ruben dias", 87], ["marquinhos", 85], ["militao", 84], ["eder militao", 84],
+  ["lisandro martinez", 83], ["gvardiol", 86], ["akanji", 83], ["otamendi", 79],
+  ["carvajal", 83], ["alexander-arnold", 86], ["robertson", 85], ["theo hernandez", 84],
+  ["cancelo", 83], ["joao cancelo", 83], ["hakimi", 86], ["achraf hakimi", 86],
+  ["dumfries", 81], ["trippier", 81], ["rudiger", 83], ["antonio rudiger", 83],
+  ["laporte", 83], ["aymeric laporte", 83], ["kim min-jae", 85], ["upamecano", 83],
+  ["mazraoui", 82], ["noussair mazraoui", 82], ["timber", 82], ["acuna", 80], ["molina", 82],
+  ["saliba", 83], ["william saliba", 83], ["kounde", 83], ["jules kounde", 83],
+  ["le normand", 82], ["robin le normand", 82], ["gvardiol", 86],
+  // MID
+  ["rodri", 91], ["de bruyne", 90], ["kevin de bruyne", 90], ["pedri", 88], ["pedri gonzalez", 88],
+  ["bellingham", 88], ["jude bellingham", 88], ["kimmich", 87], ["joshua kimmich", 87],
+  ["musiala", 87], ["jamal musiala", 87], ["wirtz", 87], ["florian wirtz", 87],
+  ["foden", 87], ["phil foden", 87], ["valverde", 87], ["federico valverde", 87],
+  ["mac allister", 83], ["alexis mac allister", 83], ["de paul", 83], ["rodrigo de paul", 83],
+  ["camavinga", 84], ["eduardo camavinga", 84], ["tchouameni", 84], ["aurelien tchouameni", 84],
+  ["goretzka", 84], ["dani olmo", 84], ["sabitzer", 82], ["laimer", 82], ["freuler", 81],
+  ["modric", 84], ["luka modric", 84], ["brozovic", 83], ["marcelo brozovic", 83],
+  ["kovacic", 83], ["mateo kovacic", 83], ["ugarte", 82], ["manuel ugarte", 82],
+  ["bentancur", 82], ["rodrigo bentancur", 82], ["xhaka", 83], ["granit xhaka", 83],
+  ["caicedo", 85], ["moises caicedo", 85], ["adams", 82], ["tyler adams", 82],
+  ["reyna", 81], ["giovanni reyna", 81], ["mckennie", 79], ["weston mckennie", 79],
+  ["mitoma", 83], ["kaoru mitoma", 83], ["doan", 81], ["ritsu doan", 81],
+  ["kubo", 84], ["takefusa kubo", 84], ["morita", 81], ["endo", 81], ["wataru endo", 81],
+  ["odegaard", 87], ["martin odegaard", 87], ["hojbjerg", 81], ["guler", 82], ["arda guler", 82],
+  ["calhanoglu", 83], ["hakan calhanoglu", 83], ["paqueta", 84], ["lucas paqueta", 84],
+  ["amrabat", 81], ["sofyan amrabat", 81], ["james rodriguez", 82],
+  // FWD
+  ["mbappe", 91], ["kylian mbappe", 91], ["vinicius jr", 92], ["vinicius junior", 92], ["vinicius", 92],
+  ["haaland", 91], ["erling haaland", 91], ["messi", 90], ["lionel messi", 90],
+  ["kane", 88], ["harry kane", 88], ["salah", 88], ["mohamed salah", 88],
+  ["son", 87], ["son heung-min", 87], ["raphinha", 85], ["rodrygo", 86],
+  ["endrick", 82], ["gabriel martinelli", 83], ["martinelli", 83],
+  ["lautaro", 85], ["lautaro martinez", 85], ["griezmann", 85], ["antoine griezmann", 85],
+  ["dembele", 85], ["ousmane dembele", 85], ["lamine yamal", 86], ["yamal", 86],
+  ["ferran torres", 82], ["nico williams", 85], ["williams", 85],
+  ["gakpo", 84], ["cody gakpo", 84], ["depay", 83], ["memphis depay", 83],
+  ["gnabry", 82], ["serge gnabry", 82], ["sane", 85], ["leroy sane", 85],
+  ["havertz", 83], ["kai havertz", 83], ["rashford", 83], ["marcus rashford", 83],
+  ["saka", 85], ["bukayo saka", 85], ["palmer", 84], ["cole palmer", 84],
+  ["pulisic", 82], ["christian pulisic", 82],
+  ["isak", 86], ["alexander isak", 86], ["gyokeres", 85], ["viktor gyokeres", 85],
+  ["forsberg", 81], ["kudus", 82], ["mohammed kudus", 82],
+  ["diaz", 85], ["luiz diaz", 85], ["luis diaz", 85],
+  ["leao", 86], ["rafael leao", 86], ["joao felix", 82], ["goncalo ramos", 81],
+  ["bruno fernandes", 87], ["dybala", 82], ["paulo dybala", 82],
+  ["di maria", 80], ["angel di maria", 80], ["thuram", 83], ["marcus thuram", 83],
+  ["kolo muani", 82], ["randal kolo muani", 82], ["darwin nunez", 85], ["nunez", 85],
+  ["trossard", 82], ["leandro trossard", 82], ["doku", 83], ["jeremy doku", 83],
+  ["mahrez", 84], ["riyad mahrez", 84], ["arnautovic", 80], ["alaba", 83], ["david alaba", 83],
+  ["lukaku", 82], ["romelu lukaku", 82], ["schick", 84], ["patrik schick", 84],
+];
+
+const FC26_MAP = new Map<string, number>(FC26_RAW);
+
+const TEAM_FAMOUS_PLAYERS: Record<string, string[]> = {
+  ARG: ["Messi", "Lautaro", "Di María", "De Paul", "Mac Allister", "Dybala"],
+  ESP: ["Pedri", "Yamal", "Rodri", "Williams", "Olmo", "Morata"],
+  FRA: ["Mbappé", "Griezmann", "Dembélé", "Thuram", "Camavinga", "Tchouaméni"],
+  ENG: ["Kane", "Bellingham", "Saka", "Foden", "Palmer", "Rashford"],
+  BRA: ["Vinicius Jr", "Raphinha", "Rodrygo", "Endrick", "Paquetá", "Martinelli"],
+  POR: ["Bruno Fernandes", "Leão", "Goncalo Ramos", "João Félix", "Vitinha", "Bernardo"],
+  NED: ["Van Dijk", "Gakpo", "Depay", "De Jong", "Dumfries", "Bergwijn"],
+  GER: ["Musiala", "Wirtz", "Kimmich", "Sané", "Havertz", "Gnabry"],
+  BEL: ["De Bruyne", "Trossard", "Doku", "Lukaku", "Tielemans", "Castagne"],
+  CRO: ["Modrić", "Brozović", "Kovačić", "Gvardiol", "Budimir", "Pašalić"],
+  URU: ["Valverde", "D. Núñez", "Ugarte", "Araújo", "Bentancur", "De Arrascaeta"],
+  COL: ["Díaz", "Caicedo", "James", "Borré", "D. Sánchez", "Arias"],
+  MAR: ["Hakimi", "Amrabat", "En-Nesyri", "Mazraoui", "Boufal", "Sabiri"],
+  SUI: ["Xhaka", "Akanji", "Sow", "Embolo", "Shaqiri", "Freuler"],
+  NOR: ["Haaland", "Ødegaard", "Sörloth", "Ajer", "Bobb", "Berge"],
+  SEN: ["Mendy", "Ndoye", "Mané", "Gueye", "Kouyaté", "Sarr"],
+  JPN: ["Mitoma", "Kubo", "Doan", "Endo", "Morita", "Ueda"],
+  TUR: ["Güler", "Çalhanoğlu", "Söyüncü", "Demiral", "Müldür", "Yildiz"],
+  ECU: ["Caicedo", "Plata", "Estupiñán", "Ibarra", "Páez", "Preciado"],
+  MEX: ["Lozano", "Jiménez", "Herrera", "Gutiérrez", "Antuna", "Álvarez"],
+  AUT: ["Alaba", "Arnautović", "Laimer", "Sabitzer", "Baumgartner", "Grillitsch"],
+  USA: ["Pulisic", "Adams", "Reyna", "McKennie", "Turner", "Sargent"],
+  SWE: ["Isak", "Gyökeres", "Forsberg", "Ekdal", "Olsson", "Claesson"],
+  KOR: ["Son", "Kim Min-jae", "Lee Kang-in", "Hwang Hee-chan", "Cho", "Kim Jun-su"],
+  CIV: ["Zaha", "Cornet", "Gradel", "Pépé", "Boly", "Sangaré"],
+  ALG: ["Mahrez", "Belaïli", "Zerrouki", "Brahimi", "Slimani", "Bensbaini"],
+  CAN: ["Davies", "Johnston", "Buchanan", "Larin", "Osorio", "David"],
+  SCO: ["Robertson", "McTominay", "Gilmour", "McGinn", "Adams", "Christie"],
+  EGY: ["Salah", "Trezeguet", "Elneny", "M. Mohamed", "T. Hamed", "Fathy"],
+  IRN: ["Taremi", "Jahanbakhsh", "Azmoun", "Torabi", "Karimi", "Hosseini"],
+  AUS: ["Irvine", "Leckie", "Behich", "Ryan", "Duke", "Devlin"],
+  PAR: ["Almirón", "Sanabria", "Enciso", "Alcaraz", "Villasanti", "Espínola"],
+  GHA: ["Kudus", "Partey", "Ayew", "Baidoo", "Amankwah", "Mensah"],
+  TUN: ["Khazri", "Msakni", "Skhiri", "Drager", "Laïdouni", "Ben Slimane"],
+  RSA: ["Tau", "Mothwa", "Zwane", "Brockie", "Lorch", "Mokoena"],
+  COD: ["Lukebakio", "Banza", "Bakambu", "Bongonda", "Bolasie", "Mbemba"],
+  PAN: ["Davis", "Murillo", "Fajardo", "Torres", "Godoy", "Carrasquilla"],
+  QAT: ["Al Haydos", "Afif", "Boudiaf", "Muntari", "Al Rawi", "Hassan"],
+  KSA: ["Al-Dawsari", "Al-Buraikan", "Kanno", "Bahebri", "Oulare", "Al-Shahrani"],
+  UZB: ["Shomurodov", "Otajonov", "Sidiqov", "Saidov", "Kholmatov", "Tursunov"],
+  NZL: ["Wood", "Paasi", "Just", "McGlinchey", "Bell", "Jones"],
+  IRQ: ["Mohanad", "Amjad", "Hasan", "Ali Adnan", "Saad", "Hammadi"],
+  BIH: ["Džeko", "Pjanić", "Gojak", "Kolašinac", "Bičakčić", "Hamdija"],
+  CZE: ["Schick", "Souček", "Hlozek", "Coufal", "Kuchta", "Janktto"],
+  JOR: ["Al-Taamari", "Bani Yaseen", "Al-Naimat", "Al-Rawajfeh", "Shboul", "Habashna"],
+  CPV: ["Mendes", "Jamiro", "Andrade", "Tavares", "Santos", "Fortes"],
+  HAI: ["Nazon", "Romero", "Naïm", "Tardieu", "Guerrier", "Bienvenu"],
+  CUW: ["Bacuna", "Slagveer", "Hasselbaink", "Tirpan", "Cijntje", "Martina"],
+};
+
 export function playerRating(p: RawPlayer, base: number): number {
-  let r = base - 6 + (hash(p.id || p.name) % 13); // teamBase ±6
+  // Comprueba el lookup de FC 26 (nombre completo normalizado)
+  const fullNorm = norm(p.name);
+  if (FC26_MAP.has(fullNorm)) return clamp(FC26_MAP.get(fullNorm)!, 55, 95);
+  // Fallback: solo apellido (la última palabra del nombre)
+  const last = fullNorm.split(" ").at(-1)!;
+  if (last.length > 3 && FC26_MAP.has(last)) return clamp(FC26_MAP.get(last)! - 1, 55, 95);
+  // Heurística mejorada si no hay match
+  let r = base - 5 + (hash(p.id || p.name) % 11);
   const n = p.number ?? 99;
-  if (n >= 1 && n <= 11) r += 3; // dorsales de titular
+  if (n >= 1 && n <= 11) r += 3;
   if (n === 10) r += 4;
-  else if (n === 9 || n === 7) r += 2; // dorsales de estrella
-  if (p.club_badge) r += 2; // juega en un club reconocible
-  return clamp(Math.round(r), 52, 95);
+  else if (n === 9 || n === 7) r += 2;
+  if (p.club_badge) r += 2;
+  return clamp(Math.round(r), 62, 90);
 }
 
 export function toSquad(players: RawPlayer[], teamCode: string | null): SquadPlayer[] {
@@ -189,13 +317,14 @@ export interface LineupStrength {
   defense: number;
   overall: number;
   chemistry: number; // 0-100
+  clubLinks: number; // número de pares de compañeros de club
   avgRating: number;
 }
 
 export function lineupStrength(picks: (SquadPlayer | null)[], formation: Formation): LineupStrength {
   const chosen = picks.filter(Boolean) as SquadPlayer[];
   if (chosen.length === 0) {
-    return { attack: 0, defense: 0, overall: 0, chemistry: 0, avgRating: 0 };
+    return { attack: 0, defense: 0, overall: 0, chemistry: 0, clubLinks: 0, avgRating: 0 };
   }
 
   const avgRating = chosen.reduce((a, p) => a + p.rating, 0) / chosen.length;
@@ -210,12 +339,13 @@ export function lineupStrength(picks: (SquadPlayer | null)[], formation: Formati
   const attackers = ratingOf("att");
   const defenders = ratingOf("def");
 
-  // Química: jugadores que comparten club con al menos otro del 11
-  // (raro en un 11 de 11 países, pero posible → bonus oculto al rendir).
+  // Química: un «par» es 2 jugadores del mismo club en el 11.
+  // Cada par vale 25 puntos (4 pares = 100%). Se explica visualmente en la UI.
   const counts = new Map<string, number>();
   for (const p of chosen) if (p.club) counts.set(p.club, (counts.get(p.club) ?? 0) + 1);
-  const linked = chosen.filter((p) => p.club && (counts.get(p.club) ?? 0) >= 2).length;
-  const chemistry = Math.round((linked / 11) * 100);
+  let clubLinks = 0;
+  for (const n of counts.values()) if (n >= 2) clubLinks += n - 1;
+  const chemistry = Math.min(100, clubLinks * 25);
   const chemBonus = (chemistry / 100) * 4;
 
   return {
@@ -223,6 +353,7 @@ export function lineupStrength(picks: (SquadPlayer | null)[], formation: Formati
     defense: Math.round(clamp(defenders + chemBonus, 40, 99)),
     overall: Math.round(avgRating),
     chemistry,
+    clubLinks,
     avgRating: Math.round(avgRating),
   };
 }
@@ -266,6 +397,14 @@ export interface SimSide {
   defense: number;
   overall: number;
   isUser?: boolean;
+  scorerPool: string[]; // nombres de jugadores para atribuir goles
+}
+
+export interface MatchEvent {
+  minute: number;
+  scorer: string;
+  assist?: string;
+  forHome: boolean;
 }
 
 export interface SimMatch {
@@ -276,13 +415,39 @@ export interface SimMatch {
   homePens?: number;
   awayPens?: number;
   winner: "home" | "away"; // tras prórroga/penaltis en eliminatorias
+  events: MatchEvent[];
+}
+
+function generateEvents(
+  homeGoals: number,
+  awayGoals: number,
+  home: SimSide,
+  away: SimSide,
+  rng: () => number,
+): MatchEvent[] {
+  const events: MatchEvent[] = [];
+  const pick = (pool: string[]) => pool[Math.floor(rng() * pool.length)];
+  const addGoal = (pool: string[], forHome: boolean) => {
+    const minute = 1 + Math.floor(rng() * 93);
+    const scorer = pool.length ? pick(pool) : "";
+    let assist: string | undefined;
+    if (pool.length > 1 && rng() < 0.58) {
+      const others = pool.filter((n) => n !== scorer);
+      if (others.length) assist = others[Math.floor(rng() * others.length)];
+    }
+    if (scorer) events.push({ minute, scorer, assist, forHome });
+  };
+  for (let i = 0; i < homeGoals; i++) addGoal(home.scorerPool, true);
+  for (let i = 0; i < awayGoals; i++) addGoal(away.scorerPool, false);
+  return events.sort((a, b) => a.minute - b.minute);
 }
 
 function playMatch(home: SimSide, away: SimSide, rng: () => number, knockout: boolean): SimMatch {
   const hg = poisson(xg(home.attack, away.defense), rng);
   const ag = poisson(xg(away.attack, home.defense), rng);
+  const events = generateEvents(hg, ag, home, away, rng);
   const winner: "home" | "away" = hg >= ag ? "home" : "away";
-  const m: SimMatch = { home, away, homeGoals: hg, awayGoals: ag, winner };
+  const m: SimMatch = { home, away, homeGoals: hg, awayGoals: ag, winner, events };
   if (knockout && hg === ag) {
     // Penaltis: probabilidad ponderada por el overall.
     const pHome = home.overall / (home.overall + away.overall);
@@ -347,7 +512,14 @@ export interface RunResult {
 const KO_ROUNDS = ["Dieciseisavos", "Octavos", "Cuartos", "Semifinal", "Final"];
 
 function sideFor(team: TeamLite, strength: { attack: number; defense: number; overall: number }, isUser = false): SimSide {
-  return { team, attack: strength.attack, defense: strength.defense, overall: strength.overall, isUser };
+  return {
+    team,
+    attack: strength.attack,
+    defense: strength.defense,
+    overall: strength.overall,
+    isUser,
+    scorerPool: TEAM_FAMOUS_PLAYERS[team.code ?? ""] ?? [],
+  };
 }
 
 function baseStrength(t: TeamLite) {
@@ -360,7 +532,8 @@ export function simulateRun(
   userTeam: TeamLite,
   userStrength: LineupStrength,
   pool: TeamLite[],
-  seed: number
+  seed: number,
+  userPicks?: (PickedPlayer | null)[],
 ): RunResult {
   const rng = mulberry32(seed);
   const pick = (from: TeamLite[]) => from[Math.floor(rng() * from.length)];
@@ -375,6 +548,17 @@ export function simulateRun(
   };
 
   const user = sideFor(userTeam, userStrength, true);
+  if (userPicks) {
+    // Pool ponderado: fwd × 5, mid × 3, def × 1, gk excluido
+    const weightedPool: string[] = [];
+    for (const p of userPicks) {
+      if (!p) continue;
+      const n = shortName(p.name);
+      const w = p.line === "fwd" ? 5 : p.line === "mid" ? 3 : p.line === "def" ? 1 : 0;
+      for (let i = 0; i < w; i++) weightedPool.push(n);
+    }
+    if (weightedPool.length) user.scorerPool = weightedPool;
+  }
 
   // ── Fase de grupos: 3 rivales, todos contra todos (6 partidos) ──
   const rivals = [take(), take(), take()];

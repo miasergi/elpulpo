@@ -10,6 +10,7 @@ import { playTick, haptic } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import {
   resultEmoji,
+  shortName,
   type BracketRound,
   type Formation,
   type GroupRow,
@@ -413,7 +414,7 @@ function ResultCard({
         </div>
       </details>
 
-      <ShareEleven run={run} emoji={emoji} strength={strength} showMedias={showMedias} />
+      <ShareEleven run={run} emoji={emoji} strength={strength} showMedias={showMedias} picks={picks} formation={formation} />
 
       <div className="flex gap-2">
         <Button size="full" variant="secondary" onClick={onReplay} className="flex-1">
@@ -453,25 +454,59 @@ function PathRow({ label, detail, state }: { label: string; detail: string; stat
   );
 }
 
+const LINE_ICON: Record<string, string> = { gk: "🧤", def: "🛡️", mid: "⚙️", fwd: "⚡" };
+
+function buildShareText(
+  run: RunResult,
+  emoji: string,
+  picks: (PickedPlayer | null)[],
+  formation: Formation,
+): string {
+  // Agrupa jugadores por línea respetando el orden de la formación
+  const lines: { icon: string; parts: string[] }[] = [];
+  const order: string[] = ["gk", "def", "mid", "fwd"];
+  for (const lineKey of order) {
+    const inLine = formation.slots
+      .map((slot, i) => ({ slot, pick: picks[i] }))
+      .filter(({ slot, pick }) => slot.line === lineKey && pick)
+      .map(({ pick }) => `${shortName(pick!.name)} (${pick!.team.code ?? "?"})`);
+    if (inLine.length) lines.push({ icon: LINE_ICON[lineKey] ?? "•", parts: inLine });
+  }
+  const lineup = lines.map((l) => `${l.icon} ${l.parts.join(" · ")}`).join("\n");
+  return `Mi 11 del mundial (11 países):\n${lineup}\n\n→ ${run.reachedLabel} ${emoji}\nelpulpo.vercel.app`;
+}
+
 function ShareEleven({
   run,
   emoji,
   strength,
   showMedias,
+  picks,
+  formation,
 }: {
   run: RunResult;
   emoji: string;
   strength: LineupStrength;
   showMedias: boolean;
+  picks: (PickedPlayer | null)[];
+  formation: Formation;
 }) {
   const [busy, setBusy] = useState(false);
+
+  // Encoda el 11 para la imagen OG
+  const picksData = picks
+    .filter(Boolean)
+    .map((p) => ({ n: shortName(p!.name), c: p!.team.code ?? "?", l: p!.line }));
+  const picksParam = picksData.length ? JSON.stringify(picksData) : "";
 
   const imageUrl =
     `/api/og/eleven?name=${encodeURIComponent("Mi 11 de 11 países")}` +
     `&res=${encodeURIComponent(run.reachedLabel)}&emoji=${encodeURIComponent(emoji)}` +
     (showMedias ? `&ov=${strength.avgRating}` : "") +
-    `&chem=${strength.chemistry}`;
-  const text = `Monté un 11 con jugadores de 11 países distintos y llegó a "${run.reachedLabel}" ${emoji} en El Pulpo. ¿Mejoras mi 11? elpulpo.vercel.app`;
+    `&chem=${strength.chemistry}` +
+    (picksParam ? `&picks=${encodeURIComponent(picksParam)}` : "");
+
+  const text = buildShareText(run, emoji, picks, formation);
 
   async function share() {
     setBusy(true);
