@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ChevronRight, Share2, RotateCcw, Dice5, Loader2, Check, X } from "lucide-react";
 import { TeamFlag } from "@/components/match/team-flag";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { playTick, haptic } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import {
   resultEmoji,
+  type BracketRound,
   type Formation,
   type GroupRow,
   type LineupStrength,
@@ -38,6 +40,7 @@ type Scene =
 export function SimScreen({
   run,
   userTeam,
+  userAvatarUrl,
   formation,
   picks,
   strength,
@@ -47,6 +50,7 @@ export function SimScreen({
 }: {
   run: RunResult;
   userTeam: TeamLite;
+  userAvatarUrl?: string | null;
   formation: Formation;
   picks: (PickedPlayer | null)[];
   strength: LineupStrength;
@@ -66,6 +70,8 @@ export function SimScreen({
   const [idx, setIdx] = useState(0);
   const [ready, setReady] = useState(true);
   const [confetti, setConfetti] = useState(false);
+  // Track which KO rounds have been revealed so we can show bracket results
+  const [koRevealedUpTo, setKoRevealedUpTo] = useState(-1);
   const scene = scenes[idx];
 
   function fire() {
@@ -106,11 +112,12 @@ export function SimScreen({
     <div className="pb-10">
       {confetti && <Confetti />}
 
-      {/* Progreso */}
       <SceneProgress scenes={scenes} idx={idx} run={run} />
 
       <div className="mt-3">
-        {scene.t === "intro" && <GroupIntro run={run} userTeam={userTeam} />}
+        {scene.t === "intro" && (
+          <GroupIntro run={run} userTeam={userTeam} userAvatarUrl={userAvatarUrl} />
+        )}
 
         {scene.t === "group" && (
           <MatchReveal
@@ -118,6 +125,7 @@ export function SimScreen({
             match={run.groupMatches[scene.i]}
             label={`Jornada ${scene.i + 1} · Fase de grupos`}
             knockout={false}
+            userAvatarUrl={userAvatarUrl}
             onRevealed={() => setReady(true)}
           />
         )}
@@ -125,16 +133,26 @@ export function SimScreen({
         {scene.t === "table" && <GroupResult run={run} />}
 
         {scene.t === "ko" && (
-          <MatchReveal
-            key={`k${scene.i}`}
-            match={run.knockout[scene.i].match}
-            label={KO_DISPLAY[run.knockout[scene.i].round] ?? run.knockout[scene.i].round}
-            knockout
-            onRevealed={(userWon) => {
-              setReady(true);
-              if (userWon) fire();
-            }}
-          />
+          <>
+            <MatchReveal
+              key={`k${scene.i}`}
+              match={run.knockout[scene.i].match}
+              label={KO_DISPLAY[run.knockout[scene.i].round] ?? run.knockout[scene.i].round}
+              knockout
+              userAvatarUrl={userAvatarUrl}
+              onRevealed={(userWon) => {
+                setReady(true);
+                setKoRevealedUpTo(scene.i);
+                if (userWon) fire();
+              }}
+            />
+            {koRevealedUpTo >= scene.i && run.bracketRounds[scene.i] && (
+              <BracketRoundPanel
+                round={run.bracketRounds[scene.i]}
+                key={`br${scene.i}`}
+              />
+            )}
+          </>
         )}
 
         {scene.t === "final" && (
@@ -192,7 +210,15 @@ function SceneProgress({ scenes, idx, run }: { scenes: Scene[]; idx: number; run
   );
 }
 
-function GroupIntro({ run, userTeam }: { run: RunResult; userTeam: TeamLite }) {
+function GroupIntro({
+  run,
+  userTeam,
+  userAvatarUrl,
+}: {
+  run: RunResult;
+  userTeam: TeamLite;
+  userAvatarUrl?: string | null;
+}) {
   const rivals = run.groupMatches.map((m) => m.away.team);
   const teams = [run.user.team, ...rivals];
   return (
@@ -200,19 +226,26 @@ function GroupIntro({ run, userTeam }: { run: RunResult; userTeam: TeamLite }) {
       <p className="text-xs font-bold uppercase tracking-widest text-pulpo-300">Tu grupo en el Mundial</p>
       <p className="mt-1 text-sm text-muted">Juegas contra estas 3 selecciones. Pasan los 2 primeros.</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {teams.map((t) => (
-          <div
-            key={t.id}
-            className={cn(
-              "flex items-center gap-2 rounded-lg border p-2.5",
-              t.id === userTeam.id ? "border-pulpo-400 bg-pulpo-500/15" : "border-border bg-surface/50"
-            )}
-          >
-            <TeamFlag team={t} size={34} />
-            <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{t.name}</span>
-            {t.id === userTeam.id && <span className="text-[10px] font-bold text-pulpo-300">TÚ</span>}
-          </div>
-        ))}
+        {teams.map((t) => {
+          const isUser = t.id === userTeam.id;
+          return (
+            <div
+              key={t.id}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border p-2.5",
+                isUser ? "border-pulpo-400 bg-pulpo-500/15" : "border-border bg-surface/50"
+              )}
+            >
+              {isUser && userAvatarUrl ? (
+                <Avatar src={userAvatarUrl} name={userTeam.name} size={34} />
+              ) : (
+                <TeamFlag team={t} size={34} />
+              )}
+              <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{t.name}</span>
+              {isUser && <span className="text-[10px] font-bold text-pulpo-300">TÚ</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -272,6 +305,47 @@ function Row({ r, pos, qualifies }: { r: GroupRow; pos: number; qualifies: boole
   );
 }
 
+/** Panel con el resto de resultados de una ronda de eliminatorias. */
+function BracketRoundPanel({ round }: { round: BracketRound }) {
+  const others = round.matches.slice(1); // match[0] es el del usuario
+  if (others.length === 0) return null;
+  return (
+    <div className="mt-3 rounded-2xl border border-border bg-surface/60 p-4">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Resto de {KO_DISPLAY[round.name] ?? round.name}
+      </p>
+      <div className="space-y-2">
+        {others.map((m, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <TeamFlag team={m.home.team} size={18} />
+              <span className={cn("truncate font-medium", m.winner === "home" ? "text-foreground" : "text-muted")}>
+                {m.home.team.code ?? m.home.team.name}
+              </span>
+            </span>
+            <span className="shrink-0 font-extrabold tabular-nums">
+              {m.homeGoals}
+              <span className="px-0.5 text-muted-foreground">-</span>
+              {m.awayGoals}
+              {m.homePens != null && (
+                <span className="ml-1 text-[10px] text-muted">
+                  ({m.homePens}-{m.awayPens}p)
+                </span>
+              )}
+            </span>
+            <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+              <span className={cn("truncate text-right font-medium", m.winner === "away" ? "text-foreground" : "text-muted")}>
+                {m.away.team.code ?? m.away.team.name}
+              </span>
+              <TeamFlag team={m.away.team} size={18} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ResultCard({
   run,
   formation,
@@ -309,7 +383,6 @@ function ResultCard({
         </div>
       </div>
 
-      {/* Camino recorrido */}
       <div className="rounded-2xl border border-border bg-surface/60 p-4">
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Tu camino</p>
         <div className="space-y-1.5">
@@ -333,7 +406,6 @@ function ResultCard({
         </div>
       </div>
 
-      {/* Tu 11 */}
       <details className="rounded-2xl border border-border bg-surface/60 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-pulpo-200">Ver mi 11 ({formation.name})</summary>
         <div className="mt-3">
@@ -415,7 +487,7 @@ function ShareEleven({
           return;
         }
       } catch {
-        /* fallback abajo */
+        /* fallback */
       }
       if (navigator.share) {
         await navigator.share({ text, url: window.location.origin });

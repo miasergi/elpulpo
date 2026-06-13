@@ -327,12 +327,19 @@ export interface KnockoutTie {
   userWon: boolean;
 }
 
+/** Todos los partidos de una ronda de eliminatorias (incluyendo el del usuario). */
+export interface BracketRound {
+  name: string;
+  matches: SimMatch[]; // todos los partidos; el del usuario es siempre match[0] (home = user)
+}
+
 export interface RunResult {
   user: SimSide;
   groupMatches: SimMatch[]; // los 3 del usuario, en orden
   groupTable: GroupRow[];
   advanced: boolean;
   knockout: KnockoutTie[];
+  bracketRounds: BracketRound[]; // bracket completo de eliminatorias
   champion: boolean;
   reachedLabel: string; // "Campeón del mundo" | "Subcampeón" | "Cuartos de final"…
 }
@@ -413,6 +420,7 @@ export function simulateRun(
     groupTable,
     advanced,
     knockout: [],
+    bracketRounds: [],
     champion: false,
     reachedLabel: "",
   };
@@ -422,25 +430,59 @@ export function simulateRun(
     return result;
   }
 
-  // ── Eliminatorias ──
-  let alive = true;
-  for (let i = 0; i < KO_ROUNDS.length && alive; i++) {
-    const round = KO_ROUNDS[i];
-    // En rondas avanzadas, rivales de más nivel para dar emoción.
-    const minRating = i >= 3 ? 74 : i >= 2 ? 70 : 0;
-    const opp = take((t) => teamRating(t.code) >= minRating);
-    const oppSide = sideFor(opp, baseStrength(opp));
-    const m = playMatch(user, oppSide, rng, true);
-    const userWon = m.winner === "home";
-    result.knockout.push({ round, match: m, userWon });
+  // ── Eliminatorias: bracket de 32 equipos ──
+  // El usuario es siempre la semilla 0 (local en cada partido).
+  const koPool: SimSide[] = [user];
+  // Rellenamos hasta 32 equipos con el resto del pool.
+  // En rondas avanzadas cogemos rivales de mayor nivel.
+  const BRACKET_SIZE = 32;
+  for (let i = 0; i < BRACKET_SIZE - 1 && remaining.length > 0; i++) {
+    const t = take();
+    koPool.push(sideFor(t, baseStrength(t)));
+  }
+  // Si el pool no tenía suficientes equipos, duplicamos los últimos para completar potencia de 2.
+  while (koPool.length < BRACKET_SIZE) {
+    const t = koPool[koPool.length - 1];
+    koPool.push({ ...t, isUser: false });
+  }
+
+  // Bracket: en cada ronda se emparejan pares consecutivos.
+  // El usuario siempre ocupa la posición 0 → siempre es local.
+  let bracket = [...koPool];
+
+  for (let r = 0; r < KO_ROUNDS.length && bracket.length > 1; r++) {
+    const roundName = KO_ROUNDS[r];
+    const roundMatches: SimMatch[] = [];
+    const winners: SimSide[] = [];
+
+    for (let i = 0; i < bracket.length; i += 2) {
+      const home = bracket[i];
+      const away = bracket[i + 1];
+      const m = playMatch(home, away, rng, true);
+      roundMatches.push(m);
+      winners.push(m.winner === "home" ? home : away);
+    }
+
+    result.bracketRounds.push({ name: roundName, matches: roundMatches });
+
+    // El partido del usuario siempre es roundMatches[0] (home = user).
+    const userMatch = roundMatches[0];
+    const userWon = userMatch.winner === "home";
+    result.knockout.push({ round: roundName, match: userMatch, userWon });
+
     if (!userWon) {
-      alive = false;
-      result.reachedLabel = roundReachedLabel(round, false);
-    } else if (round === "Final") {
+      result.reachedLabel = roundReachedLabel(roundName, false);
+      return result;
+    }
+
+    if (roundName === "Final") {
       result.champion = true;
       result.reachedLabel = "Campeón del mundo";
     }
+
+    bracket = winners;
   }
+
   return result;
 }
 

@@ -25,6 +25,7 @@ export function FormationPitch({
   onSlot,
   activeIndex = null,
   interactive = false,
+  highlightEmpty = false,
   showMedias = true,
 }: {
   formation: Formation;
@@ -32,6 +33,7 @@ export function FormationPitch({
   onSlot?: (index: number) => void;
   activeIndex?: number | null;
   interactive?: boolean;
+  highlightEmpty?: boolean;
   showMedias?: boolean;
 }) {
   return (
@@ -50,15 +52,17 @@ export function FormationPitch({
       {formation.slots.map((slot, i) => {
         const p = picks[i];
         const active = activeIndex === i;
+        const isEmptySlot = !p;
+        const isClickable = interactive && isEmptySlot;
         return (
           <button
             key={slot.id}
             type="button"
-            disabled={!interactive}
-            onClick={() => onSlot?.(i)}
+            disabled={!isClickable}
+            onClick={() => isClickable && onSlot?.(i)}
             className={cn(
               "absolute flex w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 focus:outline-none",
-              interactive && "active:scale-95 transition-transform"
+              isClickable && "active:scale-95 transition-transform"
             )}
             style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
           >
@@ -96,7 +100,9 @@ export function FormationPitch({
               <span
                 className={cn(
                   "flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed bg-black/20",
-                  active ? "border-primary text-primary" : "border-white/60 text-white/80"
+                  active ? "border-primary text-primary" :
+                  highlightEmpty ? "animate-pulse border-pulpo-300 text-pulpo-200" :
+                  "border-white/60 text-white/80"
                 )}
               >
                 <Plus className="h-5 w-5" />

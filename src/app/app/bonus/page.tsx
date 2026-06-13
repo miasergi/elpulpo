@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { kickoffLabel } from "@/lib/format";
-import { getActiveCompetition, getActiveGroup, getMatches, getMyMembership } from "@/lib/queries";
+import { getActiveCompetition, getActiveGroup, getMyMembership } from "@/lib/queries";
 import { getBonusMarkets, getCompetitionTeams } from "@/lib/bonus";
 import { BackHeader } from "@/components/app/back-header";
 import { BonusForm } from "@/components/bonus/bonus-form";
@@ -25,14 +25,13 @@ export default async function BonusPage() {
   }
 
   const group = await getActiveGroup(profile.active_group_id);
-  const [{ markets, answers }, teams, membership, matches] = await Promise.all([
+  const [{ markets, answers }, teams, membership] = await Promise.all([
     getBonusMarkets(competition.id, profile.id, group?.id ?? null),
     getCompetitionTeams(competition.id),
     getMyMembership(profile.id, group?.id ?? null),
-    getMatches(competition.id),
   ]);
-  const firstKickoff = matches[0]?.kickoff_at;
-  const tournamentStarted = !!firstKickoff && new Date(firstKickoff) <= new Date();
+  const UNDERDOG_DEADLINE = new Date("2026-06-13T16:00:00Z"); // 18:00 CEST
+  const underdogClosed = new Date() > UNDERDOG_DEADLINE;
   // Latest deadline among still-open markets, to tell people how long they have.
   const openDeadline = markets
     .filter((m) => !m.resolved && m.closes_at && new Date(m.closes_at) > new Date())
@@ -85,7 +84,7 @@ export default async function BonusPage() {
           teams={teams.filter((t) => t.is_underdog)}
           groupId={group.id}
           initialPick={membership?.underdog_team_id ?? null}
-          closed={tournamentStarted}
+          closed={underdogClosed}
         />
       </div>
 

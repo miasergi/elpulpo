@@ -1,40 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw, X, ChevronRight } from "lucide-react";
+import { RefreshCw, X, ChevronRight } from "lucide-react";
 import { TeamFlag } from "@/components/match/team-flag";
 import { Button } from "@/components/ui/button";
 import { playTick, haptic } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { teamRating, type TeamLite } from "@/lib/games/eleven";
 
-// Fuera del componente: Math.random no puede ir en el render (react-hooks/purity).
 function makeSequence(pool: TeamLite[], target: TeamLite, steps: number): TeamLite[] {
   const seq: TeamLite[] = [];
   for (let i = 0; i < steps - 1; i++) seq.push(pool[Math.floor(Math.random() * pool.length)]);
-  seq.push(target); // aterriza siempre en el objetivo
+  seq.push(target);
   return seq;
 }
 
 /** Ruleta de selecciones: las banderas pasan rápido y frenan en una.
- *  El `target` lo decide el padre (que ya está cargando su plantilla). */
+ *  Tras aterrizar el usuario elige la posición del campo (no el jugador directamente). */
 export function TeamRoulette({
   target,
   pool,
-  slotLabel,
-  lineLabel,
-  index,
-  squadReady,
+  playerNumber,
   onChoose,
   onRespin,
   onCancel,
 }: {
   target: TeamLite;
   pool: TeamLite[];
-  slotLabel: string;
-  lineLabel: string;
-  index: number; // nº de jugador (1..11)
-  squadReady: boolean;
+  playerNumber: number; // 1..11
   onChoose: () => void;
   onRespin: () => void;
   onCancel: () => void;
@@ -53,7 +46,7 @@ export function TeamRoulette({
       if (i < seq.length - 1) playTick("tap");
       i++;
       if (i < seq.length) {
-        const t = 45 + Math.pow(i / seq.length, 2.3) * 240; // ease-out: frena al final
+        const t = 45 + Math.pow(i / seq.length, 2.3) * 240;
         timer.current = setTimeout(tick, t);
       } else {
         setLanded(true);
@@ -81,19 +74,19 @@ export function TeamRoulette({
           <X className="h-5 w-5" />
         </button>
 
-        <p className="text-center text-xs font-bold uppercase tracking-widest text-pulpo-300">Jugador {index} de 11</p>
+        <p className="text-center text-xs font-bold uppercase tracking-widest text-pulpo-300">
+          Jugador {playerNumber} de 11
+        </p>
         <p className="mt-1 text-center text-sm text-muted">
           {landed ? "Te ha tocado…" : "Girando la ruleta de selecciones…"}
         </p>
 
-        {/* Ventana de la ruleta */}
         <div
           className={cn(
             "relative mx-auto mt-4 flex aspect-square w-56 flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 bg-gradient-to-br transition-colors",
             landed ? "border-pulpo-400 from-pulpo-500/25 to-surface" : "border-border from-surface-2 to-surface"
           )}
         >
-          {/* marcador superior */}
           <span className="absolute left-1/2 top-2 -translate-x-1/2 text-pulpo-300">▼</span>
           <span key={current.id + String(landed)} className={cn(landed ? "animate-pop" : "")}>
             <TeamFlag team={current} size={104} />
@@ -113,29 +106,23 @@ export function TeamRoulette({
           )}
         </div>
 
-        {/* Pie: a qué posición va */}
-        <div className="mt-4 rounded-xl border border-border bg-surface/60 p-3 text-center">
-          <p className="text-xs text-muted">
-            Elige un <span className="font-bold text-foreground">{lineLabel}</span> de{" "}
-            <span className="font-bold text-foreground">{current.name}</span> para tu <b>{slotLabel}</b>
-          </p>
-        </div>
+        {landed && (
+          <div className="mt-4 rounded-xl border border-border bg-surface/60 p-3 text-center">
+            <p className="text-xs text-muted">
+              Ahora elige <span className="font-bold text-foreground">en qué posición</span> del campo
+              pones a un jugador de{" "}
+              <span className="font-bold text-foreground">{current.name}</span>
+            </p>
+          </div>
+        )}
 
         {landed && (
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" size="full" onClick={onRespin} className="flex-1">
               <RefreshCw className="h-4 w-4" /> Otra
             </Button>
-            <Button variant="primary" size="full" onClick={onChoose} disabled={!squadReady} className="flex-[2]">
-              {squadReady ? (
-                <>
-                  Elegir jugador <ChevronRight className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
-                </>
-              )}
+            <Button variant="primary" size="full" onClick={onChoose} className="flex-[2]">
+              Elegir posición <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         )}

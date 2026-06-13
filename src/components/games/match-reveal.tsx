@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { TeamFlag } from "@/components/match/team-flag";
+import { Avatar } from "@/components/ui/avatar";
 import { playTick, haptic } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import type { SimMatch } from "@/lib/games/eleven";
 
-/** Reveals one match: short suspense, then the score pops in. `home` is the user. */
 export function MatchReveal({
   match,
   label,
   knockout,
+  userAvatarUrl,
   onRevealed,
 }: {
   match: SimMatch;
   label: string;
   knockout: boolean;
+  userAvatarUrl?: string | null;
   onRevealed?: (userWon: boolean, draw: boolean) => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -40,7 +42,14 @@ export function MatchReveal({
       <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-pulpo-300">{label}</p>
 
       <div className="flex items-center justify-between gap-2">
-        <TeamSide name={match.home.team.name} flag={match.home.team} overall={match.home.overall} highlight />
+        <TeamSide
+          name={match.home.team.name}
+          flag={match.home.team}
+          overall={match.home.overall}
+          highlight
+          isUser={!!match.home.isUser}
+          userAvatarUrl={userAvatarUrl}
+        />
         <div className="flex min-w-[88px] flex-col items-center">
           {revealed ? (
             <div className="animate-pop text-center">
@@ -57,7 +66,11 @@ export function MatchReveal({
             <Suspense />
           )}
         </div>
-        <TeamSide name={match.away.team.name} flag={match.away.team} overall={match.away.overall} />
+        <TeamSide
+          name={match.away.team.name}
+          flag={match.away.team}
+          overall={match.away.overall}
+        />
       </div>
 
       {revealed && (
@@ -83,15 +96,23 @@ function TeamSide({
   flag,
   overall,
   highlight,
+  isUser,
+  userAvatarUrl,
 }: {
   name: string;
   flag: { id: string; name: string; code: string | null; flag_url: string | null };
   overall: number;
   highlight?: boolean;
+  isUser?: boolean;
+  userAvatarUrl?: string | null;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-1.5 text-center">
-      <TeamFlag team={flag} size={52} />
+      {isUser && userAvatarUrl ? (
+        <Avatar src={userAvatarUrl} name={name} size={52} />
+      ) : (
+        <TeamFlag team={flag} size={52} />
+      )}
       <p className={cn("max-w-full truncate text-xs font-bold", highlight && "text-pulpo-200")}>{name}</p>
       <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-bold tabular-nums text-muted">
         MEDIA {overall}

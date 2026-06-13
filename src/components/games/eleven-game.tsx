@@ -27,20 +27,40 @@ import { TeamRoulette } from "./team-roulette";
 import { SimScreen } from "./sim-screen";
 
 const LINE_LABEL: Record<Line, string> = { gk: "portero", def: "defensa", mid: "centrocampista", fwd: "delantero" };
-const USER_TEAM: TeamLite = { id: "me", name: "Tu 11", code: "TÚ", flag_url: null };
 
-export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number }) {
+type GamePhase = "intro" | "spinning" | "pick_slot" | "pick_player";
+
+export function ElevenGame({
+  teams,
+  seed,
+  userAvatarUrl,
+}: {
+  teams: TeamLite[];
+  seed: number;
+  userAvatarUrl?: string | null;
+}) {
   const router = useRouter();
+  const userTeam: TeamLite = {
+    id: "me",
+    name: "Tu 11",
+    code: "TÚ",
+    flag_url: userAvatarUrl ?? null,
+  };
+
   const [formationKey, setFormationKey] = useState("433");
   const formation = formationByKey(formationKey);
-  const [picks, setPicks] = useState<(PickedPlayer | null)[]>(() => Array(formation.slots.length).fill(null));
-  const [order, setOrder] = useState<number[]>([]); // huecos en orden de fichaje (para deshacer)
-  const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [spin, setSpin] = useState<{ target: TeamLite } | null>(null);
-  const [picking, setPicking] = useState(false);
+  const [picks, setPicks] = useState<(PickedPlayer | null)[]>(() =>
+    Array(formation.slots.length).fill(null)
+  );
+  const [order, setOrder] = useState<number[]>([]);
   const [squads, setSquads] = useState<Record<string, SquadPlayer[]>>({});
   const [showMedias, setShowMedias] = useState(true);
   const [run, setRun] = useState<RunResult | null>(null);
+
+  // ── State machine ──
+  const [phase, setPhase] = useState<GamePhase>("intro");
+  const [currentTeam, setCurrentTeam] = useState<TeamLite | null>(null);
+  const [pendingSlot, setPendingSlot] = useState<number | null>(null);
 
   const usedIds = useMemo(
     () => new Set(picks.filter(Boolean).map((p) => p!.team.id)),
@@ -49,87 +69,111 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
   const filled = picks.filter(Boolean).length;
   const complete = filled === formation.slots.length;
   const strength = useMemo(() => lineupStrength(picks, formation), [picks, formation]);
+  const targetSquad = currentTeam ? squads[currentTeam.id] : undefined;
 
-  // Carga la plantilla de la selección que ha salido (durante el giro).
+  // Pre-fetch squad when currentTeam changes.
   useEffect(() => {
-    if (!spin) return;
-    const t = spin.target;
-    if (squads[t.id]) return;
-    let cancel = false;
-    fetch(`/api/games/squad?team=${t.id}`)
+    if (!currentTeam || squads[currentTeam.id]) return;
+    let cancelled = false;
+    fetch(`/api/games/squad?team=${currentTeam.id}`)
       .then((r) => r.json())
       .then((j: { players?: RawPlayer[] }) => {
-        if (cancel) return;
-        setSquads((s) => ({ ...s, [t.id]: toSquad(j.players ?? [], t.code) }));
+        if (cancelled) return;
+        setSquads((s) => ({
+          ...s,
+          [currentTeam.id]: toSquad(j.players ?? [], currentTeam.code),
+        }));
       })
       .catch(() => {});
     return () => {
-      cancel = true;
+      cancelled = true;
     };
-  }, [spin, squads]);
+  }, [currentTeam, squads]);
 
-  const firstEmpty = () => picks.findIndex((p) => !p);
-
-  function pickTarget(slotIndex: number): TeamLite | undefined {
-    // Excluye países ya usados, salvo el que ocupa este hueco (si se rehace).
+  function launchSpin(extraExclude?: string) {
     const exclude = new Set(usedIds);
-    const keep = picks[slotIndex]?.team.id;
-    if (keep) exclude.delete(keep);
-    return pickRandom(teams.filter((t) => !exclude.has(t.id)));
-  }
-
-  function startSpin(slotIndex: number) {
-    const target = pickTarget(slotIndex);
+    if (extraExclude) exclude.add(extraExclude);
+    const available = teams.filter((t) => !exclude.has(t.id));
+    const target = pickRandom(available);
     if (!target) return;
-    setActiveSlot(slotIndex);
-    setPicking(false);
-    setSpin({ target });
+    setCurrentTeam(target);
+    setPhase("spinning");
     playTick("tap");
     haptic(12);
   }
 
-  function respin() {
-    if (activeSlot == null) return;
-    const next = (() => {
-      const exclude = new Set(usedIds);
-      const keep = picks[activeSlot]?.team.id;
-      if (keep) exclude.delete(keep);
-      if (spin) exclude.add(spin.target.id); // fuerza un país distinto al actual
-      return pickRandom(teams.filter((t) => !exclude.has(t.id))) ?? pickTarget(activeSlot);
-    })();
-    if (next) setSpin({ target: next });
+  function handleIntroStart(medias: boolean) {
+    setShowMedias(medias);
+    launchSpin();
   }
 
-  function pickPlayer(p: SquadPlayer) {
-    if (activeSlot == null || !spin) return;
-    const picked: PickedPlayer = { ...p, team: spin.target };
-    setPicks((prev) => {
-      const copy = [...prev];
-      copy[activeSlot] = picked;
-      return copy;
-    });
-    setOrder((o) => (o.includes(activeSlot) ? o : [...o, activeSlot]));
+  function handleSpinLanded() {
+    setPhase("pick_slot");
+  }
+
+  function handleRespin() {
+    const prev = currentTeam?.id;
+    const exclude = new Set(usedIds);
+    if (prev) exclude.add(prev);
+    const available = teams.filter((t) => !exclude.has(t.id));
+    const target = pickRandom(available);
+    if (!target) return;
+    setCurrentTeam(target);
+    setPhase("spinning");
+  }
+
+  function handleSlotPicked(slotIndex: number) {
+    if (picks[slotIndex]) return; // ya relleno
+    setPendingSlot(slotIndex);
+    setPhase("pick_player");
+    playTick("tap");
+  }
+
+  function handlePlayerPicked(p: SquadPlayer) {
+    if (pendingSlot == null || !currentTeam) return;
+    const picked: PickedPlayer = { ...p, team: currentTeam };
+    const newPicks = [...picks];
+    newPicks[pendingSlot] = picked;
+    setPicks(newPicks);
+    setOrder((o) => (o.includes(pendingSlot) ? o : [...o, pendingSlot]));
     playTick("success");
     haptic(16);
-    setPicking(false);
-    setSpin(null);
-    // siguiente hueco vacío
-    const nextEmpty = picks.findIndex((p2, i) => !p2 && i !== activeSlot);
-    setActiveSlot(nextEmpty >= 0 ? nextEmpty : null);
+    setPendingSlot(null);
+
+    const newFilled = newPicks.filter(Boolean).length;
+    if (newFilled === formation.slots.length) {
+      // Todos los 11 fichados
+      setCurrentTeam(null);
+      setPhase("pick_slot"); // el campo queda visible con el 11 completo
+    } else {
+      // Auto-spin para el siguiente
+      const newUsed = new Set(newPicks.filter(Boolean).map((pk) => pk!.team.id));
+      const available = teams.filter((t) => !newUsed.has(t.id));
+      const target = pickRandom(available);
+      if (target) {
+        setCurrentTeam(target);
+        setPhase("spinning");
+        playTick("tap");
+        haptic(12);
+      }
+    }
   }
 
   function undo() {
-    setOrder((o) => {
-      if (!o.length) return o;
-      const last = o[o.length - 1];
-      setPicks((prev) => {
-        const copy = [...prev];
-        copy[last] = null;
-        return copy;
-      });
-      setActiveSlot(last);
-      return o.slice(0, -1);
-    });
+    if (!order.length) return;
+    const last = order[order.length - 1];
+    const newPicks = [...picks];
+    newPicks[last] = null;
+    setPicks(newPicks);
+    setOrder((o) => o.slice(0, -1));
+    // Relanzar ruleta para ese jugador
+    const newUsed = new Set(newPicks.filter(Boolean).map((pk) => pk!.team.id));
+    const available = teams.filter((t) => !newUsed.has(t.id));
+    const target = pickRandom(available);
+    if (target) {
+      setCurrentTeam(target);
+      setPhase("spinning");
+    }
     playTick("tap");
   }
 
@@ -137,24 +181,25 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
     const next = formationByKey(key);
     setPicks((prev) => remapByLine(formation, prev, next));
     setOrder([]);
-    setActiveSlot(null);
     setFormationKey(key);
     playTick("tap");
   }
 
-  function start() {
+  function startSimulation() {
     if (!complete) return;
-    setRun(simulateRun(USER_TEAM, strength, teams, seed));
+    setRun(simulateRun(userTeam, strength, teams, seed));
     playTick("success");
     haptic(22);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // ── Pantalla de simulación ──
   if (run) {
     return (
       <SimScreen
         run={run}
-        userTeam={USER_TEAM}
+        userTeam={userTeam}
+        userAvatarUrl={userAvatarUrl ?? null}
         formation={formation}
         picks={picks}
         strength={strength}
@@ -168,19 +213,107 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
     );
   }
 
-  const ctaSlot = activeSlot != null && !picks[activeSlot] ? activeSlot : firstEmpty();
-  const targetSquad = spin ? squads[spin.target.id] : undefined;
+  // ── Pantalla de introducción ──
+  if (phase === "intro") {
+    return (
+      <div className="flex flex-col gap-5 pb-8">
+        <div className="rounded-2xl border border-pulpo-500/30 bg-gradient-to-br from-pulpo-500/15 to-surface/70 p-5 text-center">
+          <p className="text-xs font-bold uppercase tracking-widest text-pulpo-300">El 11 del mundial</p>
+          <p className="mt-2 text-balance text-sm text-muted">
+            La ruleta te dará una selección aleatoria. Elige en qué posición del campo poner un jugador y cuál eliges. 11 veces, 11 países distintos.
+          </p>
+        </div>
 
+        {/* Formación */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Formación</p>
+          <div className="flex flex-wrap gap-2">
+            {FORMATIONS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => changeFormation(f.key)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors",
+                  f.key === formationKey
+                    ? "border-pulpo-400 bg-pulpo-500/20 text-pulpo-200"
+                    : "border-border bg-surface/50 text-muted"
+                )}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Medias */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            ¿Mostrar medias de los jugadores?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowMedias(true)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-colors",
+                showMedias
+                  ? "border-pulpo-400 bg-pulpo-500/20 text-pulpo-200"
+                  : "border-border bg-surface/50 text-muted"
+              )}
+            >
+              <Eye className="h-4 w-4" /> Sí, verlas
+            </button>
+            <button
+              onClick={() => setShowMedias(false)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-colors",
+                !showMedias
+                  ? "border-border bg-surface/50 text-foreground"
+                  : "border-border bg-surface/30 text-muted"
+              )}
+            >
+              <EyeOff className="h-4 w-4" /> Sin ver medias
+            </button>
+          </div>
+        </div>
+
+        <Button
+          size="full"
+          variant="primary"
+          onClick={() => handleIntroStart(showMedias)}
+          className="h-14 text-base"
+        >
+          <Dices className="h-5 w-5" /> ¡Empezar la ruleta!
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Pantalla de juego (pick_slot o pick_player) ──
   return (
     <div className="pb-8">
-      {/* Cabecera del modo */}
+      {/* Cabecera de progreso */}
       <div className="flex items-center justify-between gap-3 rounded-xl border border-pulpo-500/30 bg-gradient-to-br from-pulpo-500/15 to-surface/70 p-3.5">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-pulpo-300">Tu 11 de 11 países</p>
-          <p className="text-sm text-muted">
-            Gira la ruleta, te toca un país y eliges <b className="text-foreground">un</b> jugador. 11 veces, 11
-            selecciones distintas.
-          </p>
+          {phase === "pick_slot" && !complete && currentTeam && (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-pulpo-300">
+                ¿Dónde pones a este jugador?
+              </p>
+              <p className="text-sm text-muted">
+                Toca una posición libre para un jugador de{" "}
+                <b className="text-foreground">{currentTeam.name}</b>
+              </p>
+            </>
+          )}
+          {complete && (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-pulpo-300">¡11 fichados!</p>
+              <p className="text-sm text-muted">Tu equipo está listo. ¡A jugar el Mundial!</p>
+            </>
+          )}
+          {!complete && !currentTeam && (
+            <p className="text-sm text-muted">Preparando la ruleta…</p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-2xl font-black tabular-nums leading-none">{filled}/11</p>
@@ -188,8 +321,8 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
         </div>
       </div>
 
-      {/* Formación + toggle medias */}
-      <div className="mt-3 flex items-center gap-2">
+      {/* Toggle medias */}
+      <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
           {FORMATIONS.map((f) => (
             <button
@@ -216,27 +349,30 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
         </button>
       </div>
 
-      {/* Campo */}
+      {/* Campo: en modo pick_slot resalta los huecos libres */}
       <div className="mt-3">
         <FormationPitch
           formation={formation}
           picks={picks}
-          interactive
-          activeIndex={ctaSlot >= 0 ? ctaSlot : null}
+          interactive={phase === "pick_slot" && !complete}
+          activeIndex={null}
+          highlightEmpty={phase === "pick_slot" && !complete}
           showMedias={showMedias}
-          onSlot={(i) => startSpin(i)}
+          onSlot={phase === "pick_slot" && !complete ? handleSlotPicked : undefined}
         />
       </div>
 
       {/* Stats del equipo */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <StatBar label="Media" value={strength.avgRating} hidden={!showMedias} />
-        <StatBar label="Química" value={strength.chemistry} suffix="%" tone="pink" />
-        <StatBar label="Ataque" value={strength.attack} hidden={!showMedias} />
-        <StatBar label="Defensa" value={strength.defense} hidden={!showMedias} />
-      </div>
-
       {filled > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <StatBar label="Media" value={strength.avgRating} hidden={!showMedias} />
+          <StatBar label="Química" value={strength.chemistry} suffix="%" tone="pink" />
+          <StatBar label="Ataque" value={strength.attack} hidden={!showMedias} />
+          <StatBar label="Defensa" value={strength.defense} hidden={!showMedias} />
+        </div>
+      )}
+
+      {filled > 0 && !complete && (
         <button
           onClick={undo}
           className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground active:scale-95"
@@ -245,63 +381,66 @@ export function ElevenGame({ teams, seed }: { teams: TeamLite[]; seed: number })
         </button>
       )}
 
-      {/* CTA */}
-      <div className="sticky bottom-20 z-10 mt-4">
-        {complete ? (
-          <Button size="full" variant="primary" onClick={start} className="h-14 animate-heartbeat text-base shadow-xl">
-            <Trophy className="h-5 w-5" /> ¡Jugar el Mundial! <ChevronRight className="h-5 w-5" />
-          </Button>
-        ) : (
+      {/* CTA: jugar o esperando ruleta */}
+      {complete && (
+        <div className="sticky bottom-20 z-10 mt-4">
           <Button
             size="full"
             variant="primary"
-            onClick={() => ctaSlot >= 0 && startSpin(ctaSlot)}
-            className="h-14 text-base shadow-xl"
+            onClick={startSimulation}
+            className="h-14 animate-heartbeat text-base shadow-xl"
           >
-            <Dices className="h-5 w-5" /> Girar la ruleta
+            <Trophy className="h-5 w-5" /> ¡Jugar el Mundial! <ChevronRight className="h-5 w-5" />
           </Button>
-        )}
-        {!complete && ctaSlot >= 0 && (
-          <p className="mt-1.5 text-center text-xs text-muted-foreground">
-            Buscando un {LINE_LABEL[formation.slots[ctaSlot].line]} para tu {formation.slots[ctaSlot].label}
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Ruleta */}
-      {spin && activeSlot != null && (
+      {/* Ruleta (overlay) */}
+      {phase === "spinning" && currentTeam && (
         <TeamRoulette
-          key={spin.target.id}
-          target={spin.target}
+          key={currentTeam.id + filled}
+          target={currentTeam}
           pool={teams}
-          slotLabel={formation.slots[activeSlot].label}
-          lineLabel={LINE_LABEL[formation.slots[activeSlot].line]}
-          index={(picks[activeSlot] ? order.indexOf(activeSlot) : filled) + 1}
-          squadReady={!!targetSquad}
-          onChoose={() => setPicking(true)}
-          onRespin={respin}
+          playerNumber={filled + 1}
+          onChoose={handleSpinLanded}
+          onRespin={handleRespin}
           onCancel={() => {
-            setSpin(null);
-            setPicking(false);
+            // Si cancela sin haber empezado, vuelve al intro
+            if (filled === 0) {
+              setPhase("intro");
+              setCurrentTeam(null);
+            } else {
+              setPhase("pick_slot");
+            }
           }}
         />
       )}
 
-      {/* Picker de jugador de esa selección */}
-      {spin && picking && activeSlot != null && targetSquad && (
-        <PlayerPicker
-          team={spin.target}
-          squad={targetSquad}
-          line={formation.slots[activeSlot].line}
-          slotLabel={formation.slots[activeSlot].label}
-          showMedias={showMedias}
-          onPick={pickPlayer}
-          onBack={() => setPicking(false)}
-          onClose={() => {
-            setPicking(false);
-            setSpin(null);
-          }}
-        />
+      {/* Picker de jugador */}
+      {phase === "pick_player" && pendingSlot != null && currentTeam && (
+        targetSquad ? (
+          <PlayerPicker
+            team={currentTeam}
+            squad={targetSquad}
+            line={formation.slots[pendingSlot].line}
+            slotLabel={formation.slots[pendingSlot].label}
+            showMedias={showMedias}
+            onPick={handlePlayerPicked}
+            onBack={() => setPhase("pick_slot")}
+            onClose={() => {
+              setPendingSlot(null);
+              setPhase("pick_slot");
+            }}
+          />
+        ) : (
+          // Squad aún cargando
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-pulpo-400 border-t-transparent" />
+              <p className="text-sm font-semibold text-pulpo-200">Cargando plantilla…</p>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
@@ -340,7 +479,6 @@ function StatBar({
   );
 }
 
-/** Conserva los jugadores por línea al cambiar de formación. */
 function remapByLine(
   prev: Formation,
   prevPicks: (PickedPlayer | null)[],

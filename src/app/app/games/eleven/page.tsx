@@ -7,10 +7,9 @@ import { randomSeed, type TeamLite } from "@/lib/games/eleven";
 export const dynamic = "force-dynamic";
 
 export default async function ElevenPage() {
-  await requireProfile();
+  const { profile } = await requireProfile();
   const supabase = await createClient();
 
-  // Las 48 selecciones (la ruleta gira entre ellas; cada jugador, un país).
   const { data: teamsRaw } = await supabase
     .from("teams")
     .select("id,name,code,flag_url")
@@ -23,7 +22,7 @@ export default async function ElevenPage() {
       {teams.length < 11 ? (
         <p className="mt-12 text-center text-sm text-muted">No hay selecciones disponibles para jugar todavía.</p>
       ) : (
-        <ElevenGame teams={teams} seed={randomSeed()} />
+        <ElevenGame teams={teams} seed={randomSeed()} userAvatarUrl={profile.avatar_url ?? null} />
       )}
     </div>
   );

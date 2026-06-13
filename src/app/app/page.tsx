@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat, Shirt, Sparkles } from "lucide-react";
+import { ChevronRight, Plus, Trophy, CalendarClock, Check, Repeat, Shirt, Sparkles, AlarmClock } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import {
   getMyGroups,
@@ -45,6 +45,9 @@ export default async function DashboardPage() {
   const bonusOpen = !!bonus.deadline && new Date(bonus.deadline) > new Date();
   const bonusPending = !!activeGroup && bonusOpen && bonus.pending > 0;
 
+  const LAST_DAY_DEADLINE = new Date("2026-06-13T16:00:00Z"); // 18:00 CEST
+  const showLastDayBanner = !!activeGroup && new Date() < LAST_DAY_DEADLINE;
+
   // Today's matches + the active group's live points race.
   let today: Awaited<ReturnType<typeof getTodayLive>> = [];
   if (activeGroup) {
@@ -81,6 +84,29 @@ export default async function DashboardPage() {
 
       {today.length > 0 && <LiveToday matches={today} currentUserId={profile.id} />}
 
+      {/* Banner último día: solo hoy 13 jun antes de las 18:00 CEST */}
+      {showLastDayBanner && !bonusPending && (
+        <Link
+          href="/app/bonus"
+          className="relative mt-5 flex items-center gap-3 overflow-hidden rounded-lg border border-danger/60 bg-danger/10 p-3.5"
+        >
+          <div className="rounded-full bg-danger/20 p-2">
+            <AlarmClock className="h-5 w-5 text-danger" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-danger">
+              ⏰ Último día para bonus y tapado
+            </p>
+            <p className="text-xs text-muted">
+              Hoy a las{" "}
+              <span className="font-semibold text-foreground">18:00h</span> se
+              cierra el plazo para siempre. ¡No pierdas puntos extra!
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
+
       {/* Recordatorio del bonus: solo si aún le faltan por configurar. */}
       {bonusPending && (
         <Link
@@ -96,11 +122,13 @@ export default async function DashboardPage() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-warning">
-              ⚡ Te {bonus.pending === 1 ? "queda 1 bonus del torneo" : `quedan ${bonus.pending} bonus del torneo`} sin poner
+              ⚡{showLastDayBanner && " ¡ÚLTIMO DÍA! "}
+              {bonus.pending === 1 ? "Queda 1 bonus del torneo" : `Quedan ${bonus.pending} bonus del torneo`} sin poner
             </p>
             <p className="text-xs text-muted">
-              Hasta <span className="font-semibold text-foreground">{kickoffLabel(bonus.deadline!).toLowerCase()}</span> ·
-              campeón, goleador… puntos extra
+              {showLastDayBanner
+                ? "Hoy a las 18:00h cierra el plazo · no pierdas puntos · también tu tapado"
+                : <>Hasta <span className="font-semibold text-foreground">{kickoffLabel(bonus.deadline!).toLowerCase()}</span> · campeón, goleador… puntos extra</>}
             </p>
           </div>
           <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
