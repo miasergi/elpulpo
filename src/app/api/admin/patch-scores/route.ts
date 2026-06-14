@@ -1,0 +1,53 @@
+import { NextResponse } from "next/server";
+import { getAdminUser } from "@/lib/admin";
+import { createServiceClient } from "@/lib/supabase/server";
+
+// One-time manual score patch for matches TheSportsDB missed.
+// DELETE this file once TheSportsDB/API-Football catch up automatically.
+const RESULTS: [string, string, number, number][] = [
+  ["Haití",        "Escocia", 0, 1], // Scotland 1-0 Haiti  (Jun 13)
+  ["Australia",    "Turquía", 2, 0], // Australia 2-0 Turkey (Jun 13)
+  ["Países Bajos", "Japón",   2, 2], // Netherlands 2-2 Japan (Jun 14)
+];
+
+export async function POST() {
+  if (!(await getAdminUser()))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
+  const supabase = createServiceClient();
+
+  const { data: comp } = await supabase.from("competitions").select("id").eq("slug", "world-cup-2026").single();
+  if (!comp) return NextResponse.json({ error: "no competition" }, { status: 500 });
+
+  const { data: teams } = await supabase.from("teams").select("id, name");
+  const byName = new Map<string, string>((teams ?? []).map((t: { id: string; name: string }) => [t.name, t.id]));
+
+  const { data: matches } = await supabase
+    .from("matches")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score")
+    .eq("competition_id", comp.id);
+
+  const now = new Date().toISOString();
+  const updated: string[] = [];
+
+  for (const [home, away, hs, as_] of RESULTS) {
+    const homeId = byName.get(home);
+    const awayId = byName.get(away);
+    if (!homeId || !awayId) { updated.push(`NOT FOUND: ${home} / ${away}`); continue; }
+
+    const match = (matches ?? []).find(
+      (m: { home_team_id: string; away_team_id: string }) =>
+        m.home_team_id === homeId && m.away_team_id === awayId
+    );
+    if (!match) { updated.push(`NO MATCH ROW: ${home} vs ${away}`); continue; }
+
+    const { error } = await supabase
+      .from("matches")
+      .update({ status: "finished", home_score: hs, away_score: as_, updated_at: now })
+      .eq("id", match.id);
+
+    updated.push(error ? `ERROR ${home} vs ${away}: ${error.message}` : `OK ${home} ${hs}-${as_} ${away}`);
+  }
+
+  return NextResponse.json({ ok: true, results: updated });
+}
