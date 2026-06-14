@@ -42,10 +42,18 @@ function mapStatus(s: string | null): MatchStatus {
 
 async function fetchRound(round: number): Promise<SdbEvent[]> {
   const url = `https://www.thesportsdb.com/api/v1/json/${key()}/eventsround.php?id=${WC_LEAGUE}&r=${round}&s=${SEASON}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return [];
-  const json = (await res.json()) as { events: SdbEvent[] | null };
-  return json.events ?? [];
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ac.signal });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { events: SdbEvent[] | null };
+    return json.events ?? [];
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export interface NormalisedSdbFixture {

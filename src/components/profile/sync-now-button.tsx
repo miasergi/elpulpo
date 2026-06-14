@@ -12,14 +12,19 @@ export function SyncNowButton() {
 
   async function sync() {
     setLoading(true);
-    const res = await fetch("/api/admin/sync", { method: "POST" });
-    const json = await res.json();
-    setLoading(false);
-    if (json.ok) {
-      toast.success(`Sincronizado: ${json.matches} partidos`);
-      router.refresh();
-    } else {
-      toast.error(json.error || "Error al sincronizar");
+    try {
+      const res = await fetch("/api/admin/sync", { method: "POST" });
+      const json = await res.json();
+      if (json.ok) {
+        toast.success(`Sincronizado: ${json.matches} partidos actualizados`);
+        router.refresh();
+      } else {
+        toast.error(json.error || "Error al sincronizar");
+      }
+    } catch {
+      toast.error("Timeout — el servidor tardó demasiado. Inténtalo de nuevo.");
+    } finally {
+      setLoading(false);
     }
   }
 
