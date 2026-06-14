@@ -91,18 +91,14 @@ export async function fetchWorldCupSportsDB() {
   const groupRounds = [1, 2, 3];
   const koRounds = [4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-  const groupEventsArr: SdbEvent[][] = [];
-  for (const r of groupRounds) {
-    groupEventsArr.push(await fetchRound(r));
-  }
-  const koEventsArr: SdbEvent[][] = [];
-  for (const r of koRounds) {
-    const ev = await fetchRound(r);
-    if (ev.length) koEventsArr.push(ev);
-  }
+  // Fetch all rounds in parallel to stay within Vercel's function timeout.
+  const [groupEventsArr, koEventsRaw] = await Promise.all([
+    Promise.all(groupRounds.map((r) => fetchRound(r))),
+    Promise.all(koRounds.map((r) => fetchRound(r))),
+  ]);
 
   const groupEvents = groupEventsArr.flat();
-  const koEvents = koEventsArr.flat();
+  const koEvents = koEventsRaw.filter((evs) => evs.length > 0).flat();
 
   // Derive groups via union-find on group-stage opponents.
   const uf = new UnionFind();
