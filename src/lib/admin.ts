@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+const ADMIN_EMAILS_HARDCODED = ["sergicornellesaguilar@gmail.com", "clientes@miarquitecto.info"];
+
 export function adminEmails() {
-  return (process.env.ADMIN_EMAILS ?? "")
+  const fromEnv = (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
+  return [...new Set([...ADMIN_EMAILS_HARDCODED, ...fromEnv])];
 }
 
 export async function getAdminUser() {
