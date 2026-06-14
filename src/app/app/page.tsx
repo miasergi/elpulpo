@@ -20,6 +20,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TeamFlag } from "@/components/match/team-flag";
 import { AdBanner } from "@/components/ads/ad-banner";
+import { SyncNowButton } from "@/components/profile/sync-now-button";
+import { getAdminUser } from "@/lib/admin";
 import { kickoffLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -27,11 +29,12 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { profile } = await requireProfile();
-  const [groups, competition, activeGroup, predicted] = await Promise.all([
+  const [groups, competition, activeGroup, predicted, admin] = await Promise.all([
     getMyGroups(profile.id),
     getActiveCompetition(),
     getActiveGroup(profile.active_group_id),
     getMyPredictions(profile.id, profile.active_group_id),
+    getAdminUser(),
   ]);
 
   const [standings, allMatches, bonus] = await Promise.all([
@@ -82,6 +85,7 @@ export default async function DashboardPage() {
 
       {competition && <WorldCupHero competitionName={competition.name} matches={allMatches} />}
 
+      {admin && <SyncNowButton />}
       {today.length > 0 && <LiveToday matches={today} currentUserId={profile.id} />}
 
       {/* Banner último día: solo hoy 13 jun antes de las 18:00 CEST */}
