@@ -149,6 +149,73 @@ export async function syncWorldCupSportsDB() {
 }
 
 /**
+ * Fast score patch: fetches all fixtures from API-Football (1 HTTP call) and
+ * updates only the score/status of existing matches, matched by team name + date.
+ * Never creates new match rows — safe to call without affecting predictions.
+ */
+export async function patchScoresFromAPIFootball() {
+  const supabase = createServiceClient();
+
+  const { data: competition } = await supabase
+    .from("competitions")
+    .select("id")
+    .eq("slug", "world-cup-2026")
+    .single();
+  if (!competition) throw new Error("Competition not found");
+
+  // Fetch API-Football fixtures + existing DB data in parallel.
+  const [fixtures, teamsRes, matchesRes] = await Promise.all([
+    fetchWorldCupFixtures(),
+    supabase.from("teams").select("id, name"),
+    supabase
+      .from("matches")
+      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score")
+      .eq("competition_id", competition.id),
+  ]);
+
+  if (fixtures.length === 0)
+    return { source: "api-football", matches: 0, note: "sin datos (plan o acceso)" };
+
+  // Build team name lookup: team_id → lowercase spanish name
+  const nameById = new Map(
+    (teamsRes.data ?? []).map((t: { id: string; name: string }) => [t.id, t.name.toLowerCase().trim()])
+  );
+
+  // Build match index: "homeSpanish|awaySpanish|date" → match row
+  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null };
+  const index = new Map<string, DbMatch>();
+  for (const m of (matchesRes.data ?? []) as DbMatch[]) {
+    const h = nameById.get(m.home_team_id ?? "");
+    const a = nameById.get(m.away_team_id ?? "");
+    const d = m.kickoff_at?.slice(0, 10);
+    if (h && a && d) index.set(`${h}|${a}|${d}`, m);
+  }
+
+  // Find changed matches.
+  const now = new Date().toISOString();
+  const updates: Array<{ id: string; status: string; home_score: number | null; away_score: number | null }> = [];
+  for (const f of fixtures) {
+    const homeEs = translateTeam(f.home.name).name.toLowerCase().trim();
+    const awayEs = translateTeam(f.away.name).name.toLowerCase().trim();
+    const date = f.kickoff_at.slice(0, 10);
+    const existing = index.get(`${homeEs}|${awayEs}|${date}`);
+    if (!existing) continue;
+    if (existing.status === f.status && existing.home_score === f.home_score && existing.away_score === f.away_score) continue;
+    updates.push({ id: existing.id, status: f.status, home_score: f.home_score, away_score: f.away_score });
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(
+      updates.map((u) =>
+        supabase.from("matches").update({ status: u.status, home_score: u.home_score, away_score: u.away_score, updated_at: now }).eq("id", u.id)
+      )
+    );
+  }
+
+  return { source: "api-football", matches: updates.length };
+}
+
+/**
  * Syncs World Cup 2026 fixtures + results from API-Football into our DB.
  * Idempotent: upserts teams and matches by their external_id.
  */
