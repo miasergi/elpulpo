@@ -39,8 +39,7 @@ export async function POST(request: Request) {
     if (!homeId || !awayId) { updated.push(`NOT FOUND: ${home} / ${away}`); continue; }
 
     const match = (matches ?? []).find(
-      (m: { home_team_id: string; away_team_id: string }) =>
-        m.home_team_id === homeId && m.away_team_id === awayId
+      (m) => m.home_team_id === homeId && m.away_team_id === awayId
     );
     if (!match) { updated.push(`NO MATCH ROW: ${home} vs ${away}`); continue; }
 

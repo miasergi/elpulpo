@@ -228,7 +228,7 @@ export async function patchScoresFromAPIFootball() {
   if (updates.length > 0) {
     await Promise.all(
       updates.map((u) =>
-        supabase.from("matches").update({ status: u.status, home_score: u.home_score, away_score: u.away_score, updated_at: now }).eq("id", u.id)
+        supabase.from("matches").update({ status: u.status as "finished" | "live" | "scheduled", home_score: u.home_score, away_score: u.away_score, updated_at: now }).eq("id", u.id)
       )
     );
   }
