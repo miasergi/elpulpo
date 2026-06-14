@@ -15,10 +15,11 @@ export async function POST(request: Request) {
       const result = await syncSquadsFIFA(createServiceClient());
       return NextResponse.json({ ok: true, ...result });
     }
-    // Use API-Football for the manual button (1 HTTP call, fast, reliable).
-    // Falls back to TheSportsDB full sync only if API-Football has no access.
+    // Try API-Football first (1 HTTP call). Fall back to TheSportsDB if
+    // API-Football has no data or team names didn't resolve to DB rows.
     const patch = await patchScoresFromAPIFootball();
-    if (patch.matches === 0 && "note" in patch) {
+    if ("note" in patch) {
+      // note = "sin datos" (plan issue) OR "name-mismatch" (team resolution failed)
       const fallback = await syncWorldCupSportsDB();
       return NextResponse.json({ ok: true, source: "thesportsdb-fallback", matches: fallback.matches });
     }
