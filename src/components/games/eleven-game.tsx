@@ -61,6 +61,7 @@ export function ElevenGame({
   const [phase, setPhase] = useState<GamePhase>("intro");
   const [currentTeam, setCurrentTeam] = useState<TeamLite | null>(null);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
+  const [respinsLeft, setRespinsLeft] = useState(1);
 
   const usedIds = useMemo(
     () => new Set(picks.filter(Boolean).map((p) => p!.team.id)),
@@ -112,6 +113,8 @@ export function ElevenGame({
   }
 
   function handleRespin() {
+    if (respinsLeft <= 0) return;
+    setRespinsLeft((n) => n - 1);
     const prev = currentTeam?.id;
     const exclude = new Set(usedIds);
     if (prev) exclude.add(prev);
@@ -404,6 +407,7 @@ export function ElevenGame({
           playerNumber={filled + 1}
           onChoose={handleSpinLanded}
           onRespin={handleRespin}
+          canRespin={respinsLeft > 0}
           onCancel={() => {
             // Si cancela sin haber empezado, vuelve al intro
             if (filled === 0) {

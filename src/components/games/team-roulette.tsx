@@ -24,6 +24,7 @@ export function TeamRoulette({
   onChoose,
   onRespin,
   onCancel,
+  canRespin = true,
 }: {
   target: TeamLite;
   pool: TeamLite[];
@@ -31,6 +32,7 @@ export function TeamRoulette({
   onChoose: () => void;
   onRespin: () => void;
   onCancel: () => void;
+  canRespin?: boolean;
 }) {
   const [current, setCurrent] = useState<TeamLite>(target);
   const [landed, setLanded] = useState(false);
@@ -118,10 +120,12 @@ export function TeamRoulette({
 
         {landed && (
           <div className="mt-4 flex gap-2">
-            <Button variant="secondary" size="full" onClick={onRespin} className="flex-1">
-              <RefreshCw className="h-4 w-4" /> Otra
-            </Button>
-            <Button variant="primary" size="full" onClick={onChoose} className="flex-[2]">
+            {canRespin && (
+              <Button variant="secondary" size="full" onClick={onRespin} className="flex-1">
+                <RefreshCw className="h-4 w-4" /> Otra
+              </Button>
+            )}
+            <Button variant="primary" size="full" onClick={onChoose} className={canRespin ? "flex-[2]" : "flex-1"}>
               Elegir posición <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

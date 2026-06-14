@@ -114,6 +114,7 @@ const FC26_RAW: [string, number][] = [
   ["mazraoui", 82], ["noussair mazraoui", 82], ["timber", 82], ["acuna", 80], ["molina", 82],
   ["saliba", 87], ["william saliba", 87], ["kounde", 83], ["jules kounde", 83],
   ["le normand", 82], ["robin le normand", 82],
+  ["trent alexander-arnold", 86],
   // MID — FC 26
   ["rodri", 90], ["de bruyne", 87], ["kevin de bruyne", 87], ["pedri", 89], ["pedri gonzalez", 89],
   ["bellingham", 90], ["jude bellingham", 90], ["kimmich", 87], ["joshua kimmich", 87],
@@ -135,18 +136,18 @@ const FC26_RAW: [string, number][] = [
   // FWD — FC 26
   ["mbappe", 91], ["kylian mbappe", 91], ["vinicius jr", 89], ["vinicius junior", 89], ["vinicius", 89],
   ["haaland", 90], ["erling haaland", 90], ["messi", 90], ["lionel messi", 90],
-  ["kane", 88], ["harry kane", 88], ["salah", 91], ["mohamed salah", 91],
-  ["son", 87], ["son heung-min", 87], ["raphinha", 85], ["rodrygo", 86],
+  ["kane", 89], ["harry kane", 89], ["salah", 91], ["mohamed salah", 91],
+  ["son", 87], ["son heung-min", 87], ["raphinha", 89], ["rodrygo", 86],
   ["endrick", 82], ["gabriel martinelli", 83], ["martinelli", 83],
   ["lautaro", 85], ["lautaro martinez", 85], ["griezmann", 85], ["antoine griezmann", 85],
-  ["dembele", 85], ["ousmane dembele", 85], ["lamine yamal", 89], ["yamal", 89],
+  ["dembele", 90], ["ousmane dembele", 90], ["lamine yamal", 89], ["yamal", 89],
   ["ferran torres", 82], ["nico williams", 86], ["williams", 86],
   ["gakpo", 84], ["cody gakpo", 84], ["depay", 83], ["memphis depay", 83],
   ["gnabry", 82], ["serge gnabry", 82], ["sane", 85], ["leroy sane", 85],
   ["havertz", 83], ["kai havertz", 83], ["rashford", 83], ["marcus rashford", 83],
   ["saka", 85], ["bukayo saka", 85], ["palmer", 84], ["cole palmer", 84],
   ["pulisic", 82], ["christian pulisic", 82],
-  ["isak", 86], ["alexander isak", 86], ["gyokeres", 85], ["viktor gyokeres", 85],
+  ["isak", 88], ["alexander isak", 88], ["gyokeres", 87], ["viktor gyokeres", 87],
   ["forsberg", 81], ["kudus", 82], ["mohammed kudus", 82],
   ["diaz", 85], ["luiz diaz", 85], ["luis diaz", 85],
   ["leao", 86], ["rafael leao", 86], ["joao felix", 82], ["goncalo ramos", 81],
@@ -158,7 +159,7 @@ const FC26_RAW: [string, number][] = [
   ["lukaku", 82], ["romelu lukaku", 82], ["schick", 84], ["patrik schick", 84],
 ];
 
-const FC26_MAP = new Map<string, number>(FC26_RAW);
+const FC26_MAP = new Map<string, number>(FC26_RAW.map(([k, v]) => [norm(k), v]));
 
 const TEAM_FAMOUS_PLAYERS: Record<string, string[]> = {
   ARG: ["Messi", "Lautaro", "Di María", "De Paul", "Mac Allister", "Dybala"],
