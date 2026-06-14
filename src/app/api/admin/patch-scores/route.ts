@@ -10,8 +10,11 @@ const RESULTS: [string, string, number, number][] = [
   ["Países Bajos", "Japón",   2, 2], // Netherlands 2-2 Japan (Jun 14)
 ];
 
-export async function POST() {
-  if (!(await getAdminUser()))
+export async function POST(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization");
+  const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+  if (!isCron && !(await getAdminUser()))
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const supabase = createServiceClient();
