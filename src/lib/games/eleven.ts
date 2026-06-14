@@ -101,22 +101,22 @@ export function shortName(full: string): string {
 
 // Ratings basados en FC 26 para jugadores conocidos del Mundial (tienen precedencia sobre la heurística)
 const FC26_RAW: [string, number][] = [
-  // GK
-  ["alisson", 88], ["ederson", 86], ["ter stegen", 89], ["courtois", 90], ["maignan", 87],
+  // GK — FC 26
+  ["alisson", 89], ["ederson", 85], ["ter stegen", 89], ["courtois", 89], ["maignan", 87],
   ["oblak", 88], ["sommer", 84], ["livakovic", 83], ["pickford", 82], ["bono", 83], ["muslera", 80],
-  // DEF
-  ["van dijk", 88], ["ruben dias", 87], ["marquinhos", 85], ["militao", 84], ["eder militao", 84],
+  // DEF — FC 26
+  ["van dijk", 90], ["ruben dias", 87], ["marquinhos", 85], ["militao", 84], ["eder militao", 84],
   ["lisandro martinez", 83], ["gvardiol", 86], ["akanji", 83], ["otamendi", 79],
   ["carvajal", 83], ["alexander-arnold", 86], ["robertson", 85], ["theo hernandez", 84],
   ["cancelo", 83], ["joao cancelo", 83], ["hakimi", 86], ["achraf hakimi", 86],
   ["dumfries", 81], ["trippier", 81], ["rudiger", 83], ["antonio rudiger", 83],
   ["laporte", 83], ["aymeric laporte", 83], ["kim min-jae", 85], ["upamecano", 83],
   ["mazraoui", 82], ["noussair mazraoui", 82], ["timber", 82], ["acuna", 80], ["molina", 82],
-  ["saliba", 83], ["william saliba", 83], ["kounde", 83], ["jules kounde", 83],
-  ["le normand", 82], ["robin le normand", 82], ["gvardiol", 86],
-  // MID
-  ["rodri", 91], ["de bruyne", 90], ["kevin de bruyne", 90], ["pedri", 88], ["pedri gonzalez", 88],
-  ["bellingham", 88], ["jude bellingham", 88], ["kimmich", 87], ["joshua kimmich", 87],
+  ["saliba", 87], ["william saliba", 87], ["kounde", 83], ["jules kounde", 83],
+  ["le normand", 82], ["robin le normand", 82],
+  // MID — FC 26
+  ["rodri", 90], ["de bruyne", 87], ["kevin de bruyne", 87], ["pedri", 89], ["pedri gonzalez", 89],
+  ["bellingham", 90], ["jude bellingham", 90], ["kimmich", 87], ["joshua kimmich", 87],
   ["musiala", 87], ["jamal musiala", 87], ["wirtz", 87], ["florian wirtz", 87],
   ["foden", 87], ["phil foden", 87], ["valverde", 87], ["federico valverde", 87],
   ["mac allister", 83], ["alexis mac allister", 83], ["de paul", 83], ["rodrigo de paul", 83],
@@ -132,15 +132,15 @@ const FC26_RAW: [string, number][] = [
   ["odegaard", 87], ["martin odegaard", 87], ["hojbjerg", 81], ["guler", 82], ["arda guler", 82],
   ["calhanoglu", 83], ["hakan calhanoglu", 83], ["paqueta", 84], ["lucas paqueta", 84],
   ["amrabat", 81], ["sofyan amrabat", 81], ["james rodriguez", 82],
-  // FWD
-  ["mbappe", 91], ["kylian mbappe", 91], ["vinicius jr", 92], ["vinicius junior", 92], ["vinicius", 92],
-  ["haaland", 91], ["erling haaland", 91], ["messi", 90], ["lionel messi", 90],
-  ["kane", 88], ["harry kane", 88], ["salah", 88], ["mohamed salah", 88],
+  // FWD — FC 26
+  ["mbappe", 91], ["kylian mbappe", 91], ["vinicius jr", 89], ["vinicius junior", 89], ["vinicius", 89],
+  ["haaland", 90], ["erling haaland", 90], ["messi", 90], ["lionel messi", 90],
+  ["kane", 88], ["harry kane", 88], ["salah", 91], ["mohamed salah", 91],
   ["son", 87], ["son heung-min", 87], ["raphinha", 85], ["rodrygo", 86],
   ["endrick", 82], ["gabriel martinelli", 83], ["martinelli", 83],
   ["lautaro", 85], ["lautaro martinez", 85], ["griezmann", 85], ["antoine griezmann", 85],
-  ["dembele", 85], ["ousmane dembele", 85], ["lamine yamal", 86], ["yamal", 86],
-  ["ferran torres", 82], ["nico williams", 85], ["williams", 85],
+  ["dembele", 85], ["ousmane dembele", 85], ["lamine yamal", 89], ["yamal", 89],
+  ["ferran torres", 82], ["nico williams", 86], ["williams", 86],
   ["gakpo", 84], ["cody gakpo", 84], ["depay", 83], ["memphis depay", 83],
   ["gnabry", 82], ["serge gnabry", 82], ["sane", 85], ["leroy sane", 85],
   ["havertz", 83], ["kai havertz", 83], ["rashford", 83], ["marcus rashford", 83],

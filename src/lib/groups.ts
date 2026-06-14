@@ -308,19 +308,22 @@ export async function getTodayLive(
     const locked = isLocked(m.status, m.kickoff_at);
     const mine = (byMatch.get(m.id) ?? []).find((p) => p.user_id === currentUserId);
     const scorers: TodayScorer[] =
-      locked && m.home_score != null
+      locked
         ? (byMatch.get(m.id) ?? [])
             .map((p) => {
               const prof = profileById.get(p.user_id);
+              const points =
+                m.home_score != null
+                  ? predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
+                    matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null)
+                  : 0;
               return {
                 user_id: p.user_id,
                 display_name: prof?.display_name ?? "Jugador",
                 avatar_url: prof?.avatar_url ?? null,
                 home: p.home_score,
                 away: p.away_score,
-                points:
-                  predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
-                  matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null),
+                points,
               };
             })
             .sort((a, b) => b.points - a.points)

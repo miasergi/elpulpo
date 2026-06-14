@@ -7,6 +7,7 @@ import { getPlayerStats } from "@/lib/stats";
 import { PageHeader } from "@/components/app/page-header";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { GroupSwitcher } from "@/components/groups/group-switcher";
+import { SyncNowButton } from "@/components/profile/sync-now-button";
 
 export const dynamic = "force-dynamic";
 
@@ -58,12 +59,15 @@ export default async function ProfilePage() {
       )}
 
       {admin && (
-        <Link
-          href="/admin"
-          className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-surface/50 p-3 text-sm font-medium"
-        >
-          <ShieldCheck className="h-4 w-4 text-pulpo-300" /> Panel de administración
-        </Link>
+        <div className="mt-4 space-y-2">
+          <SyncNowButton />
+          <Link
+            href="/admin"
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 p-3 text-sm font-medium"
+          >
+            <ShieldCheck className="h-4 w-4 text-pulpo-300" /> Panel de administración
+          </Link>
+        </div>
       )}
     </div>
   );
