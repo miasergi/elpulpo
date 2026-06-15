@@ -3,6 +3,10 @@
     {
       "path": "/api/sync",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/sync?mode=patch",
+      "schedule": "0 22 * * *"
     }
   ]
 }

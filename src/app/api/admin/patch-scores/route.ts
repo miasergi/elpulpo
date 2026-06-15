@@ -5,11 +5,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 // One-time manual score patch for matches TheSportsDB missed.
 // DELETE this file once TheSportsDB/API-Football catch up automatically.
 const RESULTS: [string, string, number, number][] = [
-  ["Haití",           "Escocia",  0, 1], // Scotland 1-0 Haiti       (Jun 13)
-  ["Australia",       "Turquía",  2, 0], // Australia 2-0 Turkey     (Jun 13)
-  ["Países Bajos",    "Japón",    2, 2], // Netherlands 2-2 Japan    (Jun 14)
-  ["Costa de Marfil", "Ecuador",  1, 0], // Ivory Coast 1-0 Ecuador  (Jun 14/15)
-  ["Suecia",          "Túnez",    5, 1], // Sweden 5-1 Tunisia       (Jun 15)
+  ["Haití",           "Escocia",  0, 1], // Scotland 1-0 Haiti           (Jun 13)
+  ["Australia",       "Turquía",  2, 0], // Australia 2-0 Turkey         (Jun 13)
+  ["Países Bajos",    "Japón",    2, 2], // Netherlands 2-2 Japan        (Jun 14)
+  ["Costa de Marfil", "Ecuador",  1, 0], // Ivory Coast 1-0 Ecuador      (Jun 14)
+  ["Suecia",          "Túnez",    5, 1], // Sweden 5-1 Tunisia           (Jun 15)
+  ["España",          "Cabo Verde", 0, 0], // Spain 0-0 Cape Verde       (Jun 15)
+  ["Bélgica",         "Egipto",   1, 1], // Belgium 1-1 Egypt            (Jun 15)
 ];
 
 export async function POST(request: Request) {
@@ -40,14 +42,24 @@ export async function POST(request: Request) {
     const awayId = byName.get(away);
     if (!homeId || !awayId) { updated.push(`NOT FOUND: ${home} / ${away}`); continue; }
 
-    const match = (matches ?? []).find(
+    // World Cup matches are on neutral ground; TheSportsDB home/away is arbitrary.
+    // Try listed order first, then reversed (swapping scores accordingly).
+    let match = (matches ?? []).find(
       (m) => m.home_team_id === homeId && m.away_team_id === awayId
     );
+    let homeScore = hs, awayScore = as_;
+    if (!match) {
+      match = (matches ?? []).find(
+        (m) => m.home_team_id === awayId && m.away_team_id === homeId
+      );
+      if (match) { homeScore = as_; awayScore = hs; }
+    }
+
     if (!match) { updated.push(`NO MATCH ROW: ${home} vs ${away}`); continue; }
 
     const { error } = await supabase
       .from("matches")
-      .update({ status: "finished", home_score: hs, away_score: as_, updated_at: now })
+      .update({ status: "finished", home_score: homeScore, away_score: awayScore, updated_at: now })
       .eq("id", match.id);
 
     updated.push(error ? `ERROR ${home} vs ${away}: ${error.message}` : `OK ${home} ${hs}-${as_} ${away}`);

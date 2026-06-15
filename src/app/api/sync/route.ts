@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncWorldCupSportsDB } from "@/lib/sync";
+import { syncWorldCupSportsDB, patchScoresFromAPIFootball } from "@/lib/sync";
 import { syncSquadsFIFA } from "@/lib/fifa";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -19,13 +19,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    // ?squads=1 → sync official FIFA rosters instead of fixtures/results.
-    if (new URL(request.url).searchParams.get("squads")) {
+    const url = new URL(request.url);
+
+    if (url.searchParams.get("squads")) {
       const result = await syncSquadsFIFA(createServiceClient());
       return NextResponse.json({ ok: true, ...result });
     }
-    const result = await syncWorldCupSportsDB();
-    return NextResponse.json({ ok: true, ...result });
+
+    // ?mode=patch → fast score-only sync via API-Football (used by the 22:00 UTC cron).
+    if (url.searchParams.get("mode") === "patch") {
+      const patch = await patchScoresFromAPIFootball();
+      return NextResponse.json({ ok: true, ...patch });
+    }
+
+    // Full sync: TheSportsDB (upserts teams + matches) and API-Football (patches scores) in parallel.
+    const [result, patch] = await Promise.all([
+      syncWorldCupSportsDB(),
+      patchScoresFromAPIFootball(),
+    ]);
+    return NextResponse.json({ ok: true, ...result, patched: patch.matches });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
