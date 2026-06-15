@@ -164,8 +164,14 @@ export async function patchScoresFromAPIFootball() {
   if (!competition) throw new Error("Competition not found");
 
   // Fetch API-Football fixtures + existing DB data in parallel.
-  const [fixtures, teamsRes, matchesRes] = await Promise.all([
-    fetchWorldCupFixtures(),
+  // Wrap fetchWorldCupFixtures in try/catch so a missing key falls through to TheSportsDB.
+  let fixtures: Awaited<ReturnType<typeof fetchWorldCupFixtures>>;
+  try {
+    fixtures = await fetchWorldCupFixtures();
+  } catch {
+    return { source: "api-football", matches: 0, indexed: 0, note: "api-football-error" };
+  }
+  const [teamsRes, matchesRes] = await Promise.all([
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")

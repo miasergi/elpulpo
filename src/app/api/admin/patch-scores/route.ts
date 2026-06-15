@@ -5,9 +5,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 // One-time manual score patch for matches TheSportsDB missed.
 // DELETE this file once TheSportsDB/API-Football catch up automatically.
 const RESULTS: [string, string, number, number][] = [
-  ["Haití",        "Escocia", 0, 1], // Scotland 1-0 Haiti  (Jun 13)
-  ["Australia",    "Turquía", 2, 0], // Australia 2-0 Turkey (Jun 13)
-  ["Países Bajos", "Japón",   2, 2], // Netherlands 2-2 Japan (Jun 14)
+  ["Haití",           "Escocia",  0, 1], // Scotland 1-0 Haiti       (Jun 13)
+  ["Australia",       "Turquía",  2, 0], // Australia 2-0 Turkey     (Jun 13)
+  ["Países Bajos",    "Japón",    2, 2], // Netherlands 2-2 Japan    (Jun 14)
+  ["Costa de Marfil", "Ecuador",  1, 0], // Ivory Coast 1-0 Ecuador  (Jun 14/15)
+  ["Suecia",          "Túnez",    5, 1], // Sweden 5-1 Tunisia       (Jun 15)
 ];
 
 export async function POST(request: Request) {
