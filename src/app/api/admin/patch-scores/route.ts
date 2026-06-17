@@ -10,8 +10,14 @@ const RESULTS: [string, string, number, number][] = [
   ["Países Bajos",    "Japón",    2, 2], // Netherlands 2-2 Japan        (Jun 14)
   ["Costa de Marfil", "Ecuador",  1, 0], // Ivory Coast 1-0 Ecuador      (Jun 14)
   ["Suecia",          "Túnez",    5, 1], // Sweden 5-1 Tunisia           (Jun 15)
-  ["España",          "Cabo Verde", 0, 0], // Spain 0-0 Cape Verde       (Jun 15)
-  ["Bélgica",         "Egipto",   1, 1], // Belgium 1-1 Egypt            (Jun 15)
+  ["España",          "Cabo Verde", 0, 0], // Spain 0-0 Cape Verde         (Jun 15)
+  ["Bélgica",         "Egipto",    1, 1], // Belgium 1-1 Egypt            (Jun 15)
+  ["Irán",            "Nueva Zelanda", 2, 2], // Iran 2-2 New Zealand     (Jun 15)
+  ["Arabia Saudí",    "Uruguay",   1, 1], // Saudi Arabia 1-1 Uruguay     (Jun 15)
+  ["Francia",         "Senegal",   3, 1], // France 3-1 Senegal           (Jun 16)
+  ["Irak",            "Noruega",   1, 4], // Iraq 1-4 Norway              (Jun 16)
+  ["Argentina",       "Argelia",   3, 0], // Argentina 3-0 Algeria        (Jun 16)
+  ["Austria",         "Jordania",  3, 1], // Austria 3-1 Jordan           (Jun 16)
 ];
 
 export async function POST(request: Request) {

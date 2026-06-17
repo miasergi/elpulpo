@@ -32,11 +32,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, ...patch });
     }
 
-    // Full sync: TheSportsDB (upserts teams + matches) and API-Football (patches scores) in parallel.
-    const [result, patch] = await Promise.all([
-      syncWorldCupSportsDB(),
-      patchScoresFromAPIFootball(),
-    ]);
+    // Full sync: TheSportsDB first (upserts teams + matches), then API-Football (corrects scores).
+    // Sequential is intentional: patchScores must always overwrite any stale TheSportsDB status.
+    const result = await syncWorldCupSportsDB();
+    const patch = await patchScoresFromAPIFootball();
     return NextResponse.json({ ok: true, ...result, patched: patch.matches });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

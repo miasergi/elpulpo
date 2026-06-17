@@ -107,6 +107,9 @@ export async function syncWorldCupSportsDB() {
   const matchRows = fixtures
     .map((f) => {
       const p = prev.get(f.external_id);
+      // Never downgrade a finished match — TheSportsDB sometimes returns stale
+      // "scheduled" status for matches already patched via API-Football.
+      if (p?.status === "finished" && f.status !== "finished") return null;
       const changed =
         !p ||
         p.status !== f.status ||
