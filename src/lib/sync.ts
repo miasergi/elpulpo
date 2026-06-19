@@ -6,6 +6,7 @@ import {
 } from "@/lib/api-football";
 import { fetchWorldCupSportsDB } from "@/lib/sports-db";
 import { translateTeam } from "@/lib/teams-es";
+import type { MatchStatus } from "@/lib/database.types";
 
 // Default tournament-wide bonus questions. Inserted once (existing rows are
 // never touched, so admin edits/resolutions survive re-syncs).
@@ -220,10 +221,24 @@ export async function patchScoresFromOpenFootball() {
     }
   }
 
+  type MatchInsert = {
+    competition_id: string;
+    home_team_id: string;
+    away_team_id: string;
+    kickoff_at: string;
+    status: MatchStatus;
+    home_score: number;
+    away_score: number;
+    stage: string;
+    round: string;
+    venue: string | null;
+    updated_at: string;
+  };
+
   const now = new Date().toISOString();
   let indexed = 0;
   const updates: Array<{ id: string; home_score: number; away_score: number }> = [];
-  const inserts: Array<object> = [];
+  const inserts: MatchInsert[] = [];
 
   for (const f of finished) {
     const id1 = resolveTeamId(f.team1);
