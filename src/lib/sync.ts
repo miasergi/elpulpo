@@ -152,6 +152,107 @@ export async function syncWorldCupSportsDB() {
 }
 
 /**
+ * Score patch via openfootball/worldcup.json (GitHub, no API key required).
+ * Fetches all finished WC2026 matches and updates scores in existing DB rows.
+ * Matches by team UUID + date (neutral venue, so tries both home/away orderings).
+ * Never downgrades finished→scheduled. Never creates new rows.
+ */
+export async function patchScoresFromOpenFootball() {
+  const supabase = createServiceClient();
+
+  const { data: competition } = await supabase
+    .from("competitions")
+    .select("id")
+    .eq("slug", "world-cup-2026")
+    .single();
+  if (!competition) throw new Error("Competition not found");
+
+  type OFMatch = { team1: string; team2: string; date: string; score?: { ft?: [number, number] | null } };
+  let json: { matches: OFMatch[] };
+  try {
+    const res = await fetch(
+      "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json",
+      { cache: "no-store" }
+    );
+    if (!res.ok) throw new Error(`openfootball ${res.status}`);
+    json = await res.json();
+  } catch {
+    return { source: "openfootball", matches: 0, indexed: 0, note: "fetch-error" };
+  }
+
+  const finished = json.matches.filter((m) => Array.isArray(m.score?.ft));
+  if (finished.length === 0)
+    return { source: "openfootball", matches: 0, indexed: 0, note: "sin datos" };
+
+  const [teamsRes, matchesRes] = await Promise.all([
+    supabase.from("teams").select("id, name"),
+    supabase
+      .from("matches")
+      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score")
+      .eq("competition_id", competition.id),
+  ]);
+
+  const nameToId = new Map<string, string>();
+  for (const t of (teamsRes.data ?? []) as { id: string; name: string }[]) {
+    nameToId.set(t.name.toLowerCase().trim(), t.id);
+  }
+  function resolveTeamId(name: string): string | undefined {
+    const tr = translateTeam(name);
+    if (tr.code) {
+      const id = nameToId.get(tr.name.toLowerCase().trim());
+      if (id) return id;
+    }
+    return nameToId.get(name.toLowerCase().trim());
+  }
+
+  // Index by both orderings — World Cup matches are on neutral ground.
+  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null };
+  const matchIndex = new Map<string, { m: DbMatch; rev: boolean }>();
+  for (const m of (matchesRes.data ?? []) as DbMatch[]) {
+    const d = m.kickoff_at?.slice(0, 10);
+    if (m.home_team_id && m.away_team_id && d) {
+      matchIndex.set(`${m.home_team_id}|${m.away_team_id}|${d}`, { m, rev: false });
+      matchIndex.set(`${m.away_team_id}|${m.home_team_id}|${d}`, { m, rev: true });
+    }
+  }
+
+  const now = new Date().toISOString();
+  let indexed = 0;
+  const updates: Array<{ id: string; home_score: number; away_score: number }> = [];
+
+  for (const f of finished) {
+    const id1 = resolveTeamId(f.team1);
+    const id2 = resolveTeamId(f.team2);
+    if (!id1 || !id2) continue;
+    const entry = matchIndex.get(`${id1}|${id2}|${f.date}`) ?? matchIndex.get(`${id2}|${id1}|${f.date}`);
+    if (!entry) continue;
+    indexed++;
+    const { m, rev } = entry;
+    const ft = f.score!.ft!;
+    const hs = rev ? ft[1] : ft[0];
+    const as_ = rev ? ft[0] : ft[1];
+    if (m.status === "finished" && m.home_score === hs && m.away_score === as_) continue;
+    updates.push({ id: m.id, home_score: hs, away_score: as_ });
+  }
+
+  if (indexed === 0)
+    return { source: "openfootball", matches: 0, indexed: 0, note: "name-mismatch" };
+
+  if (updates.length > 0) {
+    await Promise.all(
+      updates.map((u) =>
+        supabase
+          .from("matches")
+          .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, updated_at: now })
+          .eq("id", u.id)
+      )
+    );
+  }
+
+  return { source: "openfootball", matches: updates.length, indexed };
+}
+
+/**
  * Fast score patch: fetches all fixtures from API-Football (1 HTTP call) and
  * updates only the score/status of existing matches, matched by team ID + date.
  * Never creates new match rows — safe to call without affecting predictions.

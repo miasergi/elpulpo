@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
-import { patchScoresFromAPIFootball, syncWorldCupSportsDB } from "@/lib/sync";
+import { patchScoresFromOpenFootball } from "@/lib/sync";
 import { syncSquadsFIFA } from "@/lib/fifa";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -15,14 +15,7 @@ export async function POST(request: Request) {
       const result = await syncSquadsFIFA(createServiceClient());
       return NextResponse.json({ ok: true, ...result });
     }
-    // Try API-Football first (1 HTTP call). Fall back to TheSportsDB if
-    // API-Football has no data or team names didn't resolve to DB rows.
-    const patch = await patchScoresFromAPIFootball();
-    if ("note" in patch) {
-      // note = "sin datos" (plan issue) OR "name-mismatch" (team resolution failed)
-      const fallback = await syncWorldCupSportsDB();
-      return NextResponse.json({ ok: true, source: "thesportsdb-fallback", matches: fallback.matches });
-    }
+    const patch = await patchScoresFromOpenFootball();
     return NextResponse.json({ ok: true, ...patch });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

@@ -8,6 +8,7 @@ export const TEAM_ES: Record<string, { es: string; code: string }> = {
   "Canada": { es: "Canadá", code: "CAN" },
   "Bosnia-Herzegovina": { es: "Bosnia y Herzegovina", code: "BIH" },
   "Bosnia and Herzegovina": { es: "Bosnia y Herzegovina", code: "BIH" },
+  "Bosnia & Herzegovina": { es: "Bosnia y Herzegovina", code: "BIH" },
   "Qatar": { es: "Catar", code: "QAT" },
   "Switzerland": { es: "Suiza", code: "SUI" },
   "USA": { es: "Estados Unidos", code: "USA" },

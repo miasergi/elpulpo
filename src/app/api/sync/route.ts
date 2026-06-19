@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncWorldCupSportsDB, patchScoresFromAPIFootball } from "@/lib/sync";
+import { patchScoresFromOpenFootball } from "@/lib/sync";
 import { syncSquadsFIFA } from "@/lib/fifa";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -26,17 +26,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // ?mode=patch → fast score-only sync via API-Football (used by the 22:00 UTC cron).
-    if (url.searchParams.get("mode") === "patch") {
-      const patch = await patchScoresFromAPIFootball();
-      return NextResponse.json({ ok: true, ...patch });
-    }
-
-    // Full sync: TheSportsDB first (upserts teams + matches), then API-Football (corrects scores).
-    // Sequential is intentional: patchScores must always overwrite any stale TheSportsDB status.
-    const result = await syncWorldCupSportsDB();
-    const patch = await patchScoresFromAPIFootball();
-    return NextResponse.json({ ok: true, ...result, patched: patch.matches });
+    // Both crons (4 AM UTC full + 22:00 UTC patch) use openfootball:
+    // free, no API key, no plan limits, ~1s fetch, always up to date.
+    const patch = await patchScoresFromOpenFootball();
+    return NextResponse.json({ ok: true, ...patch });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
