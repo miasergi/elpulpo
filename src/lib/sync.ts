@@ -153,9 +153,9 @@ export async function syncWorldCupSportsDB() {
 
 /**
  * Score patch via openfootball/worldcup.json (GitHub, no API key required).
- * Fetches all finished WC2026 matches and updates scores in existing DB rows.
+ * Updates existing DB rows and inserts any missing rows for finished matches.
  * Matches by team UUID + date (neutral venue, so tries both home/away orderings).
- * Never downgrades finished→scheduled. Never creates new rows.
+ * Never downgrades finished→scheduled.
  */
 export async function patchScoresFromOpenFootball() {
   const supabase = createServiceClient();
@@ -167,7 +167,11 @@ export async function patchScoresFromOpenFootball() {
     .single();
   if (!competition) throw new Error("Competition not found");
 
-  type OFMatch = { team1: string; team2: string; date: string; score?: { ft?: [number, number] | null } };
+  type OFMatch = {
+    team1: string; team2: string; date: string;
+    round?: string; group?: string; ground?: string;
+    score?: { ft?: [number, number] | null };
+  };
   let json: { matches: OFMatch[] };
   try {
     const res = await fetch(
@@ -219,16 +223,37 @@ export async function patchScoresFromOpenFootball() {
   const now = new Date().toISOString();
   let indexed = 0;
   const updates: Array<{ id: string; home_score: number; away_score: number }> = [];
+  const inserts: Array<object> = [];
 
   for (const f of finished) {
     const id1 = resolveTeamId(f.team1);
     const id2 = resolveTeamId(f.team2);
     if (!id1 || !id2) continue;
+
     const entry = matchIndex.get(`${id1}|${id2}|${f.date}`) ?? matchIndex.get(`${id2}|${id1}|${f.date}`);
-    if (!entry) continue;
+    const ft = f.score!.ft!;
+
+    if (!entry) {
+      // Row missing from DB — insert it so the app shows this match.
+      inserts.push({
+        competition_id: competition.id,
+        home_team_id: id1,
+        away_team_id: id2,
+        kickoff_at: `${f.date}T12:00:00Z`,
+        status: "finished",
+        home_score: ft[0],
+        away_score: ft[1],
+        stage: f.group ?? f.round ?? "Group Stage",
+        round: f.round ?? "Matchday",
+        venue: f.ground ?? null,
+        updated_at: now,
+      });
+      indexed++;
+      continue;
+    }
+
     indexed++;
     const { m, rev } = entry;
-    const ft = f.score!.ft!;
     const hs = rev ? ft[1] : ft[0];
     const as_ = rev ? ft[0] : ft[1];
     if (m.status === "finished" && m.home_score === hs && m.away_score === as_) continue;
@@ -238,18 +263,23 @@ export async function patchScoresFromOpenFootball() {
   if (indexed === 0)
     return { source: "openfootball", matches: 0, indexed: 0, note: "name-mismatch" };
 
-  if (updates.length > 0) {
-    await Promise.all(
-      updates.map((u) =>
-        supabase
-          .from("matches")
-          .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, updated_at: now })
-          .eq("id", u.id)
-      )
-    );
-  }
+  await Promise.all([
+    updates.length > 0
+      ? Promise.all(
+          updates.map((u) =>
+            supabase
+              .from("matches")
+              .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, updated_at: now })
+              .eq("id", u.id)
+          )
+        )
+      : Promise.resolve(),
+    inserts.length > 0
+      ? supabase.from("matches").insert(inserts)
+      : Promise.resolve(),
+  ]);
 
-  return { source: "openfootball", matches: updates.length, indexed };
+  return { source: "openfootball", matches: updates.length + inserts.length, indexed, inserted: inserts.length };
 }
 
 /**
