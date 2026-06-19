@@ -245,7 +245,17 @@ export async function patchScoresFromOpenFootball() {
     const id2 = resolveTeamId(f.team2);
     if (!id1 || !id2) continue;
 
-    const entry = matchIndex.get(`${id1}|${id2}|${f.date}`) ?? matchIndex.get(`${id2}|${id1}|${f.date}`);
+    // Try exact date AND next calendar day — TheSportsDB stores UTC timestamps
+    // while openfootball uses local date, causing a 1-day offset for evening games in the Americas.
+    const d1 = f.date;
+    const d2 = new Date(`${f.date}T12:00:00Z`);
+    d2.setUTCDate(d2.getUTCDate() + 1);
+    const nextDate = d2.toISOString().slice(0, 10);
+    const entry =
+      matchIndex.get(`${id1}|${id2}|${d1}`) ??
+      matchIndex.get(`${id2}|${id1}|${d1}`) ??
+      matchIndex.get(`${id1}|${id2}|${nextDate}`) ??
+      matchIndex.get(`${id2}|${id1}|${nextDate}`);
     const ft = f.score!.ft!;
 
     if (!entry) {
