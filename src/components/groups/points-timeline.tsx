@@ -4,7 +4,52 @@ import { Badge } from "@/components/ui/badge";
 import { TeamFlag } from "@/components/match/team-flag";
 import { kickoffLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { TimelineEntry, TimelinePlayer } from "@/lib/groups";
+import type { TimelineEntry, TimelinePlayer, BonusTimelineEntry } from "@/lib/groups";
+
+export function BonusTimeline({ entries }: { entries: BonusTimelineEntry[] }) {
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mb-4 space-y-3">
+      {entries.map((entry) => (
+        <div key={entry.id} className="overflow-hidden rounded-lg border border-warning/35 bg-warning/10">
+          <div className="flex items-center justify-between gap-2 border-b border-warning/20 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-warning">{entry.label}</p>
+              <p className="text-[11px] text-muted">
+                Correcto: <span className="font-semibold text-foreground">{entry.correctAnswer}</span>
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-bold text-warning">
+              +{entry.points}
+            </span>
+          </div>
+          <div className="divide-y divide-warning/10">
+            {entry.players.map((p) => (
+              <div key={p.user_id} className="flex items-center gap-2.5 px-3 py-2">
+                <Avatar src={p.avatar_url} name={p.display_name} size={28} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{p.display_name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {p.answer ? `Puso ${p.answer}` : "No respondio"}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "text-sm font-bold tabular-nums",
+                    p.points > 0 ? "text-pitch-400" : "text-muted-foreground"
+                  )}
+                >
+                  {p.points > 0 ? `+${p.points}` : "0"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function PointsTimeline({
   entries,

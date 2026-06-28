@@ -56,6 +56,94 @@ function resolvedWinnerTeamId(
   return null;
 }
 
+function openFootballWinnerTeamId(
+  winner: string | null | undefined,
+  team1: string,
+  team2: string,
+  id1: string,
+  id2: string,
+  homeTeamId: string,
+  awayTeamId: string,
+  homeScore: number | null,
+  awayScore: number | null
+) {
+  if (winner === team1) return id1;
+  if (winner === team2) return id2;
+  return resolvedWinnerTeamId(homeTeamId, awayTeamId, homeScore, awayScore);
+}
+
+async function resolveGroupWinnerBonuses(
+  supabase: ReturnType<typeof createServiceClient>,
+  competitionId: string
+) {
+  const { data: matches } = await supabase
+    .from("matches")
+    .select("stage,status,home_score,away_score,home_team_id,away_team_id")
+    .eq("competition_id", competitionId)
+    .ilike("stage", "Grupo %");
+
+  type Row = {
+    stage: string | null;
+    status: string;
+    home_score: number | null;
+    away_score: number | null;
+    home_team_id: string | null;
+    away_team_id: string | null;
+  };
+  type Standing = { id: string; points: number; gd: number; gf: number; name: string };
+  const byGroup = new Map<string, Row[]>();
+  for (const m of (matches ?? []) as Row[]) {
+    if (!m.stage) continue;
+    if (!byGroup.has(m.stage)) byGroup.set(m.stage, []);
+    byGroup.get(m.stage)!.push(m);
+  }
+
+  const updates: Array<{ key: string; correct_team_id: string }> = [];
+  for (const [stage, rows] of byGroup) {
+    const letter = stage.replace(/^Grupo\s+/i, "").trim().toUpperCase();
+    if (!/^[A-L]$/.test(letter)) continue;
+    if (rows.length < 6) continue;
+    if (rows.some((m) => m.status !== "finished" || m.home_score == null || m.away_score == null)) continue;
+
+    const table = new Map<string, Standing>();
+    const ensure = (id: string | null) => {
+      if (!id) return null;
+      if (!table.has(id)) table.set(id, { id, points: 0, gd: 0, gf: 0, name: id });
+      return table.get(id)!;
+    };
+    for (const m of rows) {
+      const h = ensure(m.home_team_id);
+      const a = ensure(m.away_team_id);
+      if (!h || !a || m.home_score == null || m.away_score == null) continue;
+      h.gf += m.home_score;
+      h.gd += m.home_score - m.away_score;
+      a.gf += m.away_score;
+      a.gd += m.away_score - m.home_score;
+      if (m.home_score > m.away_score) h.points += 3;
+      else if (m.away_score > m.home_score) a.points += 3;
+      else {
+        h.points += 1;
+        a.points += 1;
+      }
+    }
+    const winner = [...table.values()].sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.id.localeCompare(b.id))[0];
+    if (winner) updates.push({ key: `group_winner_${letter}`, correct_team_id: winner.id });
+  }
+
+  if (updates.length === 0) return { resolved: 0 };
+
+  await Promise.all(
+    updates.map((u) =>
+      supabase
+        .from("bonus_markets")
+        .update({ resolved: true, correct_team_id: u.correct_team_id })
+        .eq("competition_id", competitionId)
+        .eq("key", u.key)
+    )
+  );
+  return { resolved: updates.length };
+}
+
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
  * upserts teams/matches by external_id, and removes leftover demo rows.
@@ -203,15 +291,11 @@ export async function patchScoresFromOpenFootball() {
     return { source: "openfootball", matches: 0, indexed: 0, note: "fetch-error" };
   }
 
-  const finished = json.matches.filter((m) => Array.isArray(m.score?.ft));
-  if (finished.length === 0)
-    return { source: "openfootball", matches: 0, indexed: 0, note: "sin datos" };
-
   const [teamsRes, matchesRes] = await Promise.all([
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
-      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score")
+      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score, winner_team_id")
       .eq("competition_id", competition.id),
   ]);
 
@@ -245,8 +329,8 @@ export async function patchScoresFromOpenFootball() {
     away_team_id: string;
     kickoff_at: string;
     status: MatchStatus;
-    home_score: number;
-    away_score: number;
+    home_score: number | null;
+    away_score: number | null;
     winner_team_id: string | null;
     stage: string;
     round: string;
@@ -256,10 +340,24 @@ export async function patchScoresFromOpenFootball() {
 
   const now = new Date().toISOString();
   let indexed = 0;
-  const updates: Array<{ id: string; home_score: number; away_score: number; winner_team_id: string | null }> = [];
+  const updates: Array<{
+    id: string;
+    status: MatchStatus;
+    home_score: number | null;
+    away_score: number | null;
+    winner_team_id: string | null;
+    stage: string;
+    round: string;
+    venue: string | null;
+  }> = [];
   const inserts: MatchInsert[] = [];
 
-  for (const f of finished) {
+  for (const f of json.matches) {
+    const ft = f.score?.ft ?? null;
+    const isFinished = Array.isArray(ft);
+    const isKnockout = !f.group;
+    if (!isFinished && !isKnockout) continue;
+
     const id1 = resolveTeamId(f.team1);
     const id2 = resolveTeamId(f.team2);
     if (!id1 || !id2) continue;
@@ -275,7 +373,11 @@ export async function patchScoresFromOpenFootball() {
       matchIndex.get(`${id2}|${id1}|${d1}`) ??
       matchIndex.get(`${id1}|${id2}|${nextDate}`) ??
       matchIndex.get(`${id2}|${id1}|${nextDate}`);
-    const ft = f.score!.ft!;
+    const status: MatchStatus = ft ? "finished" : "scheduled";
+    const stage = f.group ?? f.round ?? "Group Stage";
+    const round = f.round ?? "Matchday";
+    const homeScore = ft?.[0] ?? null;
+    const awayScore = ft?.[1] ?? null;
 
     if (!entry) {
       // Row missing from DB — insert it so the app shows this match.
@@ -284,13 +386,12 @@ export async function patchScoresFromOpenFootball() {
         home_team_id: id1,
         away_team_id: id2,
         kickoff_at: `${f.date}T12:00:00Z`,
-        status: "finished",
-        home_score: ft[0],
-        away_score: ft[1],
-        winner_team_id:
-          f.winner === f.team1 ? id1 : f.winner === f.team2 ? id2 : resolvedWinnerTeamId(id1, id2, ft[0], ft[1]),
-        stage: f.group ?? f.round ?? "Group Stage",
-        round: f.round ?? "Matchday",
+        status,
+        home_score: homeScore,
+        away_score: awayScore,
+        winner_team_id: openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore),
+        stage,
+        round,
         venue: f.ground ?? null,
         updated_at: now,
       });
@@ -300,16 +401,36 @@ export async function patchScoresFromOpenFootball() {
 
     indexed++;
     const { m, rev } = entry;
-    const hs = rev ? ft[1] : ft[0];
-    const as_ = rev ? ft[0] : ft[1];
-    const winnerTeamId =
-      f.winner === f.team1
-        ? id1
-        : f.winner === f.team2
-          ? id2
-          : resolvedWinnerTeamId(m.home_team_id, m.away_team_id, hs, as_);
-    if (m.status === "finished" && m.home_score === hs && m.away_score === as_ && m.winner_team_id === winnerTeamId) continue;
-    updates.push({ id: m.id, home_score: hs, away_score: as_, winner_team_id: winnerTeamId });
+    if (m.status === "finished" && status !== "finished") continue;
+    const hs = ft ? (rev ? ft[1] : ft[0]) : null;
+    const as_ = ft ? (rev ? ft[0] : ft[1]) : null;
+    const winnerTeamId = openFootballWinnerTeamId(
+      f.winner,
+      f.team1,
+      f.team2,
+      id1,
+      id2,
+      m.home_team_id ?? id1,
+      m.away_team_id ?? id2,
+      hs,
+      as_
+    );
+    if (
+      m.status === status &&
+      m.home_score === hs &&
+      m.away_score === as_ &&
+      m.winner_team_id === winnerTeamId
+    ) continue;
+    updates.push({
+      id: m.id,
+      status,
+      home_score: hs,
+      away_score: as_,
+      winner_team_id: winnerTeamId,
+      stage,
+      round,
+      venue: f.ground ?? null,
+    });
   }
 
   if (indexed === 0)
@@ -321,7 +442,16 @@ export async function patchScoresFromOpenFootball() {
           updates.map((u) =>
             supabase
               .from("matches")
-              .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, winner_team_id: u.winner_team_id, updated_at: now })
+              .update({
+                status: u.status,
+                home_score: u.home_score,
+                away_score: u.away_score,
+                winner_team_id: u.winner_team_id,
+                stage: u.stage,
+                round: u.round,
+                venue: u.venue,
+                updated_at: now,
+              })
               .eq("id", u.id)
           )
         )
@@ -331,7 +461,15 @@ export async function patchScoresFromOpenFootball() {
       : Promise.resolve(),
   ]);
 
-  return { source: "openfootball", matches: updates.length + inserts.length, indexed, inserted: inserts.length };
+  const bonus = await resolveGroupWinnerBonuses(supabase, competition.id);
+
+  return {
+    source: "openfootball",
+    matches: updates.length + inserts.length,
+    indexed,
+    inserted: inserts.length,
+    bonus,
+  };
 }
 
 /**

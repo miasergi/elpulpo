@@ -405,6 +405,23 @@ export interface TimelineEntry {
   players: TimelinePlayer[];
 }
 
+export interface BonusTimelinePlayer {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  answer: string | null;
+  points: number;
+  correct: boolean;
+}
+
+export interface BonusTimelineEntry {
+  id: string;
+  label: string;
+  points: number;
+  correctAnswer: string;
+  players: BonusTimelinePlayer[];
+}
+
 function ranksByTotal(totals: Map<string, number>): Map<string, number> {
   const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
   const ranks = new Map<string, number>();
@@ -513,6 +530,63 @@ export async function getGroupPointsTimeline(
   }
 
   return entries.reverse(); // most recent first
+}
+
+export async function getGroupBonusTimeline(
+  groupId: string,
+  competitionId: string,
+  members: { id: string; display_name: string; avatar_url: string | null }[]
+): Promise<BonusTimelineEntry[]> {
+  if (members.length === 0) return [];
+  const supabase = await createClient();
+  const memberIds = members.map((m) => m.id);
+  const [{ data: markets }, { data: preds }, { data: teams }] = await Promise.all([
+    supabase
+      .from("bonus_markets")
+      .select("id,key,label,kind,points,correct_team_id,correct_text")
+      .eq("competition_id", competitionId)
+      .eq("resolved", true)
+      .like("key", "group_winner_%")
+      .order("key", { ascending: true }),
+    supabase
+      .from("bonus_predictions")
+      .select("user_id, market_id, team_id, answer_text")
+      .eq("group_id", groupId)
+      .in("user_id", memberIds),
+    supabase.from("teams").select("id,name,short_name"),
+  ]);
+
+  const byMarketUser = new Map<string, NonNullable<typeof preds>[number]>();
+  for (const p of preds ?? []) byMarketUser.set(`${p.market_id}:${p.user_id}`, p);
+  const profileById = new Map(members.map((m) => [m.id, m]));
+  const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
+
+  return (markets ?? []).map((m) => {
+    const correctTeam = m.correct_team_id ? teamById.get(m.correct_team_id) : null;
+    const correctAnswer = correctTeam?.short_name ?? correctTeam?.name ?? m.correct_text ?? "Resuelto";
+    const players = memberIds.map((id) => {
+      const prof = profileById.get(id);
+      const pred = byMarketUser.get(`${m.id}:${id}`);
+      const predTeam = pred?.team_id ? teamById.get(pred.team_id) : null;
+      const answer = predTeam?.short_name ?? predTeam?.name ?? pred?.answer_text ?? null;
+      const correct = m.kind === "team" ? pred?.team_id === m.correct_team_id : false;
+      return {
+        user_id: id,
+        display_name: prof?.display_name ?? "Jugador",
+        avatar_url: prof?.avatar_url ?? null,
+        answer,
+        correct,
+        points: correct ? m.points : 0,
+      };
+    });
+    return {
+      id: m.id,
+      label: m.label,
+      points: m.points,
+      correctAnswer,
+      players: players.sort((a, b) => b.points - a.points || a.display_name.localeCompare(b.display_name)),
+    };
+  });
 }
 
 export interface GroupUpcomingMatch {

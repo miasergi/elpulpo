@@ -16,10 +16,10 @@ import { InviteCard } from "./invite-card";
 import { GroupBadge } from "./group-badge";
 import { GroupMatches } from "./group-matches";
 import { GroupSettings } from "./group-settings";
-import { PointsTimeline, TimelineIntro } from "./points-timeline";
+import { BonusTimeline, PointsTimeline, TimelineIntro } from "./points-timeline";
 import { ShareRank } from "./share-rank";
 import { ScoringEditor } from "./scoring-editor";
-import type { StandingRow, TimelineEntry, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo } from "@/lib/groups";
+import type { StandingRow, TimelineEntry, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo, BonusTimelineEntry } from "@/lib/groups";
 
 type Tab = "ranking" | "matches" | "activity" | "chat" | "info";
 
@@ -33,6 +33,7 @@ export function GroupDetail({
   standings,
   members,
   timeline,
+  bonusTimeline,
   matchboard,
   bonusBoard,
   tournamentStarted,
@@ -54,6 +55,7 @@ export function GroupDetail({
   standings: StandingRow[];
   members: Member[];
   timeline: TimelineEntry[];
+  bonusTimeline: BonusTimelineEntry[];
   matchboard: { upcoming: GroupUpcomingMatch[]; recent: GroupRecentMatch[] };
   bonusBoard: Record<string, MemberBonusInfo>;
   tournamentStarted: boolean;
@@ -174,6 +176,7 @@ export function GroupDetail({
         {tab === "activity" && (
           <>
             <TimelineIntro />
+            <BonusTimeline entries={bonusTimeline} />
             <PointsTimeline entries={timeline} currentUserId={currentUserId} />
           </>
         )}

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { getGroup, getGroupMembers, getStandings, getGroupPointsTimeline, getGroupMatchboard, getGroupBonusBoard } from "@/lib/groups";
+import { getGroup, getGroupMembers, getStandings, getGroupPointsTimeline, getGroupMatchboard, getGroupBonusBoard, getGroupBonusTimeline } from "@/lib/groups";
 import { getMatches } from "@/lib/queries";
 import { GroupDetail } from "@/components/groups/group-detail";
 import { BackHeader } from "@/components/app/back-header";
@@ -25,9 +25,10 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const timelineMembers = members.flatMap((m) =>
     m.profile ? [{ id: m.profile.id, display_name: m.profile.display_name, avatar_url: m.profile.avatar_url }] : []
   );
-  const [standings, timeline, matchboard, bonusBoard, matches] = await Promise.all([
+  const [standings, timeline, bonusTimeline, matchboard, bonusBoard, matches] = await Promise.all([
     getStandings(id),
     getGroupPointsTimeline(group, timelineMembers),
+    getGroupBonusTimeline(id, group.competition_id, timelineMembers),
     getGroupMatchboard(group, members.flatMap((m) => (m.profile ? [m.profile.id] : []))),
     getGroupBonusBoard(id, group.competition_id),
     getMatches(group.competition_id),
@@ -43,6 +44,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
         standings={standings}
         members={members}
         timeline={timeline}
+        bonusTimeline={bonusTimeline}
         matchboard={matchboard}
         bonusBoard={bonusBoard}
         tournamentStarted={tournamentStarted}
