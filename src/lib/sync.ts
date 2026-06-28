@@ -163,6 +163,16 @@ function normaliseOpenFootballStage(group: string | undefined, round: string | u
   return round ?? "Group Stage";
 }
 
+function openFootballKickoff(date: string, time?: string | null) {
+  const m = time?.match(/^(\d{1,2}):(\d{2})\s+UTC([+-]\d{1,2})$/i);
+  if (!m) return new Date(`${date}T12:00:00Z`).toISOString();
+  const [year, month, day] = date.split("-").map(Number);
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const offset = Number(m[3]);
+  return new Date(Date.UTC(year, month - 1, day, hour - offset, minute)).toISOString();
+}
+
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
  * upserts teams/matches by external_id, and removes leftover demo rows.
@@ -294,6 +304,7 @@ export async function patchScoresFromOpenFootball() {
 
   type OFMatch = {
     team1: string; team2: string; date: string;
+    time?: string | null;
     round?: string; group?: string; ground?: string;
     winner?: string | null;
     score?: { ft?: [number, number] | null };
@@ -314,7 +325,7 @@ export async function patchScoresFromOpenFootball() {
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
-      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score, winner_team_id")
+      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score, winner_team_id, stage, round, venue")
       .eq("competition_id", competition.id),
   ]);
 
@@ -332,14 +343,96 @@ export async function patchScoresFromOpenFootball() {
   }
 
   // Index by both orderings — World Cup matches are on neutral ground.
-  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null; winner_team_id: string | null };
+  type DbMatch = {
+    id: string;
+    home_team_id: string | null;
+    away_team_id: string | null;
+    kickoff_at: string;
+    status: string;
+    home_score: number | null;
+    away_score: number | null;
+    winner_team_id: string | null;
+    stage: string | null;
+    round: string | null;
+    venue: string | null;
+  };
   const matchIndex = new Map<string, { m: DbMatch; rev: boolean }>();
+  const numberToMatch = new Map<number, DbMatch>();
   for (const m of (matchesRes.data ?? []) as DbMatch[]) {
     const d = m.kickoff_at?.slice(0, 10);
     if (m.home_team_id && m.away_team_id && d) {
       matchIndex.set(`${m.home_team_id}|${m.away_team_id}|${d}`, { m, rev: false });
       matchIndex.set(`${m.away_team_id}|${m.home_team_id}|${d}`, { m, rev: true });
     }
+    const no = m.round?.match(/#(\d+)/)?.[1];
+    if (no) numberToMatch.set(Number(no), m);
+  }
+
+  type GroupStanding = { group: string; teamId: string; points: number; gd: number; gf: number; rank: number };
+  const groupTables = new Map<string, Map<string, GroupStanding>>();
+  const ensureStanding = (group: string, teamId: string | null) => {
+    if (!teamId) return null;
+    if (!groupTables.has(group)) groupTables.set(group, new Map());
+    const table = groupTables.get(group)!;
+    if (!table.has(teamId)) table.set(teamId, { group, teamId, points: 0, gd: 0, gf: 0, rank: 0 });
+    return table.get(teamId)!;
+  };
+  for (const m of (matchesRes.data ?? []) as DbMatch[]) {
+    const group = m.stage?.match(/^Grupo\s+([A-L])$/i)?.[1]?.toUpperCase();
+    if (!group || m.status !== "finished" || m.home_score == null || m.away_score == null) continue;
+    const home = ensureStanding(group, m.home_team_id);
+    const away = ensureStanding(group, m.away_team_id);
+    if (!home || !away) continue;
+    home.gf += m.home_score;
+    home.gd += m.home_score - m.away_score;
+    away.gf += m.away_score;
+    away.gd += m.away_score - m.home_score;
+    if (m.home_score > m.away_score) home.points += 3;
+    else if (m.away_score > m.home_score) away.points += 3;
+    else {
+      home.points += 1;
+      away.points += 1;
+    }
+  }
+  const rankedGroups = new Map<string, GroupStanding[]>();
+  for (const [group, table] of groupTables) {
+    const rows = [...table.values()].sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.teamId.localeCompare(b.teamId));
+    rows.forEach((row, i) => (row.rank = i + 1));
+    rankedGroups.set(group, rows);
+  }
+  const bestThirds = [...rankedGroups.values()]
+    .map((rows) => rows[2])
+    .filter((row): row is GroupStanding => !!row)
+    .sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.group.localeCompare(b.group))
+    .slice(0, 8);
+  const usedThirdGroups = new Set<string>();
+
+  function loserOf(m: DbMatch) {
+    if (!m.winner_team_id || !m.home_team_id || !m.away_team_id) return null;
+    return m.winner_team_id === m.home_team_id ? m.away_team_id : m.home_team_id;
+  }
+
+  function resolveSlot(slot: string): string | undefined {
+    const directTeam = resolveTeamId(slot);
+    if (directTeam) return directTeam;
+    const rank = slot.match(/^([12])([A-L])$/i);
+    if (rank) return rankedGroups.get(rank[2].toUpperCase())?.[Number(rank[1]) - 1]?.teamId;
+    const third = slot.match(/^3([A-L](?:\/[A-L])*)$/i);
+    if (third) {
+      const options = new Set(third[1].toUpperCase().split("/"));
+      const picked = bestThirds.find((row) => options.has(row.group) && !usedThirdGroups.has(row.group));
+      if (!picked) return undefined;
+      usedThirdGroups.add(picked.group);
+      return picked.teamId;
+    }
+    const winner = slot.match(/^W(\d+)$/i);
+    if (winner) return numberToMatch.get(Number(winner[1]))?.winner_team_id ?? undefined;
+    const loser = slot.match(/^L(\d+)$/i);
+    if (loser) {
+      const match = numberToMatch.get(Number(loser[1]));
+      return match ? loserOf(match) ?? undefined : undefined;
+    }
+    return undefined;
   }
 
   type MatchInsert = {
@@ -365,20 +458,23 @@ export async function patchScoresFromOpenFootball() {
     home_score: number | null;
     away_score: number | null;
     winner_team_id: string | null;
+    kickoff_at: string;
     stage: string;
     round: string;
     venue: string | null;
   }> = [];
   const inserts: MatchInsert[] = [];
+  let knockoutIndex = 0;
 
   for (const f of json.matches) {
     const ft = f.score?.ft ?? null;
     const isFinished = Array.isArray(ft);
     const isKnockout = !f.group;
+    const matchNumber = isKnockout ? 73 + knockoutIndex++ : null;
     if (!isFinished && !isKnockout) continue;
 
-    const id1 = resolveTeamId(f.team1);
-    const id2 = resolveTeamId(f.team2);
+    const id1 = resolveSlot(f.team1);
+    const id2 = resolveSlot(f.team2);
     if (!id1 || !id2) continue;
 
     // Try exact date AND next calendar day — TheSportsDB stores UTC timestamps
@@ -394,7 +490,8 @@ export async function patchScoresFromOpenFootball() {
       matchIndex.get(`${id2}|${id1}|${nextDate}`);
     const status: MatchStatus = ft ? "finished" : "scheduled";
     const stage = normaliseOpenFootballStage(f.group, f.round);
-    const round = f.round ?? "Matchday";
+    const round = matchNumber ? `${f.round ?? "Knockout"} #${matchNumber}` : f.round ?? "Matchday";
+    const kickoffAt = openFootballKickoff(f.date, f.time);
     const homeScore = ft?.[0] ?? null;
     const awayScore = ft?.[1] ?? null;
 
@@ -405,7 +502,7 @@ export async function patchScoresFromOpenFootball() {
         competition_id: competition.id,
         home_team_id: id1,
         away_team_id: id2,
-        kickoff_at: `${f.date}T12:00:00Z`,
+        kickoff_at: kickoffAt,
         status,
         home_score: homeScore,
         away_score: awayScore,
@@ -439,7 +536,11 @@ export async function patchScoresFromOpenFootball() {
       m.status === status &&
       m.home_score === hs &&
       m.away_score === as_ &&
-      m.winner_team_id === winnerTeamId
+      m.winner_team_id === winnerTeamId &&
+      new Date(m.kickoff_at).getTime() === new Date(kickoffAt).getTime() &&
+      m.stage === stage &&
+      m.round === round &&
+      (m.venue ?? null) === (f.ground ?? null)
     ) continue;
     updates.push({
       id: m.id,
@@ -447,6 +548,7 @@ export async function patchScoresFromOpenFootball() {
       home_score: hs,
       away_score: as_,
       winner_team_id: winnerTeamId,
+      kickoff_at: kickoffAt,
       stage,
       round,
       venue: f.ground ?? null,
@@ -467,6 +569,7 @@ export async function patchScoresFromOpenFootball() {
                 home_score: u.home_score,
                 away_score: u.away_score,
                 winner_team_id: u.winner_team_id,
+                kickoff_at: u.kickoff_at,
                 stage: u.stage,
                 round: u.round,
                 venue: u.venue,
