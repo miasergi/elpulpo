@@ -454,6 +454,8 @@ export async function patchScoresFromOpenFootball() {
   let indexed = 0;
   const updates: Array<{
     id: string;
+    home_team_id?: string;
+    away_team_id?: string;
     status: MatchStatus;
     home_score: number | null;
     away_score: number | null;
@@ -496,8 +498,38 @@ export async function patchScoresFromOpenFootball() {
     const awayScore = ft?.[1] ?? null;
 
     if (!entry) {
-      // Row missing from DB — insert it so the app shows this match.
       if (!isKnockout) continue;
+      // Fallback: look up by match number — handles stale slot resolutions where
+      // teams were wrong on a previous sync run (the match exists but with wrong team IDs).
+      const numberEntry = matchNumber ? numberToMatch.get(matchNumber) : undefined;
+      if (numberEntry) {
+        const oldDate = numberEntry.kickoff_at?.slice(0, 10);
+        if (oldDate) {
+          matchIndex.delete(`${numberEntry.home_team_id}|${numberEntry.away_team_id}|${oldDate}`);
+          matchIndex.delete(`${numberEntry.away_team_id}|${numberEntry.home_team_id}|${oldDate}`);
+        }
+        const correctedEntry: DbMatch = { ...numberEntry, home_team_id: id1, away_team_id: id2, kickoff_at: kickoffAt };
+        matchIndex.set(`${id1}|${id2}|${d1}`, { m: correctedEntry, rev: false });
+        matchIndex.set(`${id2}|${id1}|${d1}`, { m: correctedEntry, rev: true });
+        const correctedWinner = openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore);
+        numberToMatch.set(matchNumber!, { ...correctedEntry, winner_team_id: correctedWinner });
+        updates.push({
+          id: numberEntry.id,
+          home_team_id: id1,
+          away_team_id: id2,
+          status,
+          home_score: homeScore,
+          away_score: awayScore,
+          winner_team_id: correctedWinner,
+          kickoff_at: kickoffAt,
+          stage,
+          round,
+          venue: f.ground ?? null,
+        });
+        indexed++;
+        continue;
+      }
+      // Row missing from DB — insert it.
       inserts.push({
         competition_id: competition.id,
         home_team_id: id1,
@@ -565,6 +597,8 @@ export async function patchScoresFromOpenFootball() {
             supabase
               .from("matches")
               .update({
+                ...(u.home_team_id ? { home_team_id: u.home_team_id } : {}),
+                ...(u.away_team_id ? { away_team_id: u.away_team_id } : {}),
                 status: u.status,
                 home_score: u.home_score,
                 away_score: u.away_score,
