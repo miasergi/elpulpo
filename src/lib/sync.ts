@@ -144,6 +144,25 @@ async function resolveGroupWinnerBonuses(
   return { resolved: updates.length };
 }
 
+async function removeOpenFootballGroupDuplicates(
+  supabase: ReturnType<typeof createServiceClient>,
+  competitionId: string
+) {
+  const { count } = await supabase
+    .from("matches")
+    .delete({ count: "exact" })
+    .eq("competition_id", competitionId)
+    .is("external_id", null)
+    .ilike("stage", "Group %");
+
+  return count ?? 0;
+}
+
+function normaliseOpenFootballStage(group: string | undefined, round: string | undefined) {
+  if (group) return group.replace(/^Group\s+/i, "Grupo ");
+  return round ?? "Group Stage";
+}
+
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
  * upserts teams/matches by external_id, and removes leftover demo rows.
@@ -374,13 +393,14 @@ export async function patchScoresFromOpenFootball() {
       matchIndex.get(`${id1}|${id2}|${nextDate}`) ??
       matchIndex.get(`${id2}|${id1}|${nextDate}`);
     const status: MatchStatus = ft ? "finished" : "scheduled";
-    const stage = f.group ?? f.round ?? "Group Stage";
+    const stage = normaliseOpenFootballStage(f.group, f.round);
     const round = f.round ?? "Matchday";
     const homeScore = ft?.[0] ?? null;
     const awayScore = ft?.[1] ?? null;
 
     if (!entry) {
       // Row missing from DB — insert it so the app shows this match.
+      if (!isKnockout) continue;
       inserts.push({
         competition_id: competition.id,
         home_team_id: id1,
@@ -461,6 +481,7 @@ export async function patchScoresFromOpenFootball() {
       : Promise.resolve(),
   ]);
 
+  const cleanedGroupDuplicates = await removeOpenFootballGroupDuplicates(supabase, competition.id);
   const bonus = await resolveGroupWinnerBonuses(supabase, competition.id);
 
   return {
@@ -468,6 +489,7 @@ export async function patchScoresFromOpenFootball() {
     matches: updates.length + inserts.length,
     indexed,
     inserted: inserts.length,
+    cleanedGroupDuplicates,
     bonus,
   };
 }
