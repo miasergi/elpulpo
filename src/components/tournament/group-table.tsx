@@ -9,8 +9,8 @@ export function GroupTable({ label, standings }: { label: string; standings: Sta
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <h3 className="text-sm font-bold">{label}</h3>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-pitch-500" />Clasifica</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />Repesca</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-pitch-500" />Clasificado</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />Mejor 3o</span>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMatches, type MatchRow } from "@/lib/queries";
 import { isLocked, dayKey } from "@/lib/format";
-import { predictionPoints, matchMultiplier } from "@/lib/scoring";
+import { predictionPoints, matchMultiplier, awardsAdvanceBonus } from "@/lib/scoring";
 
 export interface StandingRow {
   user_id: string;
@@ -209,13 +209,18 @@ export async function getHeadToHead(
 
   const { data: preds } = await supabase
     .from("predictions")
-    .select("match_id, user_id, home_score, away_score")
+    .select("match_id, user_id, home_score, away_score, winner_team_id")
     .eq("group_id", group.id)
     .in("user_id", [aId, bId])
     .in("match_id", played.map((m) => m.id));
 
-  const predOf = new Map<string, { h: number; a: number }>(); // `${matchId}:${uid}`
-  for (const p of preds ?? []) predOf.set(`${p.match_id}:${p.user_id}`, { h: p.home_score, a: p.away_score });
+  const predOf = new Map<string, { h: number; a: number; winnerTeamId: string | null }>(); // `${matchId}:${uid}`
+  for (const p of preds ?? [])
+    predOf.set(`${p.match_id}:${p.user_id}`, {
+      h: p.home_score,
+      a: p.away_score,
+      winnerTeamId: p.winner_team_id ?? null,
+    });
 
   const pts = { exact: group.pts_exact, result: group.pts_result };
   const side = (id: string): H2HSide => ({
@@ -235,8 +240,34 @@ export async function getHeadToHead(
     const pa = predOf.get(`${m.id}:${aId}`);
     const pb = predOf.get(`${m.id}:${bId}`);
     if (!pa && !pb) continue; // neither predicted → skip
-    const aPts = pa ? predictionPoints(pa.h, pa.a, m.home_score, m.away_score, pts) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(aId) ?? null) : 0;
-    const bPts = pb ? predictionPoints(pb.h, pb.a, m.home_score, m.away_score, pts) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(bId) ?? null) : 0;
+    const aPts = pa
+      ? predictionPoints(
+          pa.h,
+          pa.a,
+          m.home_score,
+          m.away_score,
+          pts,
+          pa.winnerTeamId,
+          m.winner_team_id,
+          m.home_team?.id ?? null,
+          m.away_team?.id ?? null,
+          awardsAdvanceBonus(m.stage)
+        ) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(aId) ?? null)
+      : 0;
+    const bPts = pb
+      ? predictionPoints(
+          pb.h,
+          pb.a,
+          m.home_score,
+          m.away_score,
+          pts,
+          pb.winnerTeamId,
+          m.winner_team_id,
+          m.home_team?.id ?? null,
+          m.away_team?.id ?? null,
+          awardsAdvanceBonus(m.stage)
+        ) * matchMultiplier(m.home_team, m.away_team, underdogOf.get(bId) ?? null)
+      : 0;
     a.total += aPts;
     b.total += bPts;
     if (pa && m.home_score === pa.h && m.away_score === pa.a) a.exacts++;
@@ -288,7 +319,7 @@ export async function getTodayLive(
   const [{ data: preds }, { data: memberRows }] = await Promise.all([
     supabase
       .from("predictions")
-      .select("match_id, user_id, home_score, away_score")
+      .select("match_id, user_id, home_score, away_score, winner_team_id")
       .eq("group_id", group.id)
       .in("match_id", todays.map((m) => m.id))
       .in("user_id", memberIds),
@@ -314,7 +345,18 @@ export async function getTodayLive(
               const prof = profileById.get(p.user_id);
               const points =
                 m.home_score != null
-                  ? predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
+                  ? predictionPoints(
+                      p.home_score,
+                      p.away_score,
+                      m.home_score,
+                      m.away_score,
+                      pts,
+                      p.winner_team_id ?? null,
+                      m.winner_team_id,
+                      m.home_team?.id ?? null,
+                      m.away_team?.id ?? null,
+                      awardsAdvanceBonus(m.stage)
+                    ) *
                     matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null)
                   : 0;
               return {
@@ -398,7 +440,7 @@ export async function getGroupPointsTimeline(
   const [{ data: preds }, { data: memberRows }] = await Promise.all([
     supabase
       .from("predictions")
-      .select("match_id, user_id, home_score, away_score")
+      .select("match_id, user_id, home_score, away_score, winner_team_id")
       .eq("group_id", group.id)
       .in("match_id", played.map((m) => m.id))
       .in("user_id", memberIds),
@@ -406,10 +448,14 @@ export async function getGroupPointsTimeline(
   ]);
 
   const underdogOf = new Map((memberRows ?? []).map((r) => [r.user_id, r.underdog_team_id]));
-  const predByMatch = new Map<string, Map<string, { h: number; a: number }>>();
+  const predByMatch = new Map<string, Map<string, { h: number; a: number; winnerTeamId: string | null }>>();
   for (const p of preds ?? []) {
     if (!predByMatch.has(p.match_id)) predByMatch.set(p.match_id, new Map());
-    predByMatch.get(p.match_id)!.set(p.user_id, { h: p.home_score, a: p.away_score });
+    predByMatch.get(p.match_id)!.set(p.user_id, {
+      h: p.home_score,
+      a: p.away_score,
+      winnerTeamId: p.winner_team_id ?? null,
+    });
   }
 
   const pts = { exact: group.pts_exact, result: group.pts_result };
@@ -418,14 +464,27 @@ export async function getGroupPointsTimeline(
 
   for (const m of played) {
     const prevRanks = ranksByTotal(totals);
-    const mp = predByMatch.get(m.id) ?? new Map<string, { h: number; a: number }>();
+    const mp = predByMatch.get(m.id) ?? new Map<string, { h: number; a: number; winnerTeamId: string | null }>();
     const rows: TimelinePlayer[] = [];
     let topPoints = 0;
 
     for (const mem of members) {
       const pr = mp.get(mem.id);
       const mult = matchMultiplier(m.home_team, m.away_team, underdogOf.get(mem.id) ?? null);
-      const points = pr ? predictionPoints(pr.h, pr.a, m.home_score, m.away_score, pts) * mult : 0;
+      const points = pr
+        ? predictionPoints(
+            pr.h,
+            pr.a,
+            m.home_score,
+            m.away_score,
+            pts,
+            pr.winnerTeamId,
+            m.winner_team_id,
+            m.home_team?.id ?? null,
+            m.away_team?.id ?? null,
+            awardsAdvanceBonus(m.stage)
+          ) * mult
+        : 0;
       totals.set(mem.id, (totals.get(mem.id) ?? 0) + points);
       if (pr && points > topPoints) topPoints = points;
       rows.push({
@@ -490,7 +549,7 @@ export async function getGroupMatchboard(
     locked.length > 0
       ? supabase
           .from("predictions")
-          .select("match_id, user_id, home_score, away_score")
+          .select("match_id, user_id, home_score, away_score, winner_team_id")
           .eq("group_id", group.id)
           .in("match_id", locked.map((m) => m.id))
           .in("user_id", memberIds)
@@ -518,7 +577,18 @@ export async function getGroupMatchboard(
       home: p.home_score,
       away: p.away_score,
       points:
-        predictionPoints(p.home_score, p.away_score, m.home_score, m.away_score, pts) *
+        predictionPoints(
+          p.home_score,
+          p.away_score,
+          m.home_score,
+          m.away_score,
+          pts,
+          p.winner_team_id ?? null,
+          m.winner_team_id,
+          m.home_team?.id ?? null,
+          m.away_team?.id ?? null,
+          awardsAdvanceBonus(m.stage)
+        ) *
         matchMultiplier(m.home_team, m.away_team, underdogOf.get(p.user_id) ?? null),
     });
   }

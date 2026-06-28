@@ -3,6 +3,7 @@ export interface ScoringRules {
   /** Deprecated: the goal-difference tier was removed (migration 0010). */
   diff?: number;
   result: number;
+  advance?: number;
 }
 
 /** x2 when the match involves a double-points team (España) or the player's
@@ -26,10 +27,43 @@ export function predictionPoints(
   pa: number,
   ah: number | null,
   aa: number | null,
-  pts: { exact: number; result: number }
+  pts: { exact: number; result: number; advance?: number },
+  predictedWinnerTeamId: string | null = null,
+  actualWinnerTeamId: string | null = null,
+  homeTeamId: string | null = null,
+  awayTeamId: string | null = null,
+  awardAdvance: boolean = false
 ): number {
   if (ah == null || aa == null) return 0;
-  if (ph === ah && pa === aa) return pts.exact;
-  if (Math.sign(ph - pa) === Math.sign(ah - aa)) return pts.result;
-  return 0;
+  let total = 0;
+  if (ph === ah && pa === aa) total += pts.exact;
+  else if (Math.sign(ph - pa) === Math.sign(ah - aa)) total += pts.result;
+
+  if (awardAdvance) {
+    const predictedAdvancer = advancingTeam(ph, pa, homeTeamId, awayTeamId, predictedWinnerTeamId);
+    const actualAdvancer = advancingTeam(ah, aa, homeTeamId, awayTeamId, actualWinnerTeamId);
+    if (predictedAdvancer && predictedAdvancer === actualAdvancer) total += pts.advance ?? 1;
+  }
+  return total;
+}
+
+export function advancingTeam(
+  homeScore: number | null,
+  awayScore: number | null,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+  winnerTeamId: string | null = null
+) {
+  if (homeScore == null || awayScore == null) return null;
+  if (homeScore > awayScore) return homeTeamId;
+  if (homeScore < awayScore) return awayTeamId;
+  return winnerTeamId;
+}
+
+export function needsTiebreakWinner(homeScore: number | null, awayScore: number | null) {
+  return homeScore != null && awayScore != null && homeScore === awayScore;
+}
+
+export function awardsAdvanceBonus(stage: string | null) {
+  return !!stage && !/grupo|group/i.test(stage);
 }

@@ -44,6 +44,18 @@ async function ensureBonusMarkets(
   );
 }
 
+function resolvedWinnerTeamId(
+  homeTeamId: string | null | undefined,
+  awayTeamId: string | null | undefined,
+  homeScore: number | null,
+  awayScore: number | null
+) {
+  if (homeScore == null || awayScore == null) return null;
+  if (homeScore > awayScore) return homeTeamId ?? null;
+  if (homeScore < awayScore) return awayTeamId ?? null;
+  return null;
+}
+
 /**
  * Default sync: pulls real WC2026 fixtures + results from TheSportsDB (free),
  * upserts teams/matches by external_id, and removes leftover demo rows.
@@ -100,7 +112,7 @@ export async function syncWorldCupSportsDB() {
   // so `updated_at` reliably marks real updates (used for result notifications).
   const { data: existing } = await supabase
     .from("matches")
-    .select("external_id, status, home_score, away_score, kickoff_at, stage")
+    .select("external_id, status, home_score, away_score, winner_team_id, kickoff_at, stage")
     .eq("competition_id", competition.id);
   const prev = new Map((existing ?? []).map((m) => [m.external_id, m]));
 
@@ -111,23 +123,28 @@ export async function syncWorldCupSportsDB() {
       // Never downgrade a finished match — TheSportsDB sometimes returns stale
       // "scheduled" status for matches already patched via API-Football.
       if (p?.status === "finished" && f.status !== "finished") return null;
+      const homeTeamId = idByExt.get(f.home.external_id) ?? null;
+      const awayTeamId = idByExt.get(f.away.external_id) ?? null;
+      const winnerTeamId = resolvedWinnerTeamId(homeTeamId, awayTeamId, f.home_score, f.away_score);
       const changed =
         !p ||
         p.status !== f.status ||
         p.home_score !== f.home_score ||
         p.away_score !== f.away_score ||
+        p.winner_team_id !== winnerTeamId ||
         p.stage !== f.stage ||
         new Date(p.kickoff_at).getTime() !== new Date(f.kickoff_at).getTime();
       if (!changed) return null;
       return {
         external_id: f.external_id,
         competition_id: competition.id,
-        home_team_id: idByExt.get(f.home.external_id) ?? null,
-        away_team_id: idByExt.get(f.away.external_id) ?? null,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
         kickoff_at: f.kickoff_at,
         status: f.status,
         home_score: f.home_score,
         away_score: f.away_score,
+        winner_team_id: winnerTeamId,
         stage: f.stage,
         round: String(f.round),
         venue: f.venue,
@@ -171,6 +188,7 @@ export async function patchScoresFromOpenFootball() {
   type OFMatch = {
     team1: string; team2: string; date: string;
     round?: string; group?: string; ground?: string;
+    winner?: string | null;
     score?: { ft?: [number, number] | null };
   };
   let json: { matches: OFMatch[] };
@@ -211,7 +229,7 @@ export async function patchScoresFromOpenFootball() {
   }
 
   // Index by both orderings — World Cup matches are on neutral ground.
-  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null };
+  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null; winner_team_id: string | null };
   const matchIndex = new Map<string, { m: DbMatch; rev: boolean }>();
   for (const m of (matchesRes.data ?? []) as DbMatch[]) {
     const d = m.kickoff_at?.slice(0, 10);
@@ -229,6 +247,7 @@ export async function patchScoresFromOpenFootball() {
     status: MatchStatus;
     home_score: number;
     away_score: number;
+    winner_team_id: string | null;
     stage: string;
     round: string;
     venue: string | null;
@@ -237,7 +256,7 @@ export async function patchScoresFromOpenFootball() {
 
   const now = new Date().toISOString();
   let indexed = 0;
-  const updates: Array<{ id: string; home_score: number; away_score: number }> = [];
+  const updates: Array<{ id: string; home_score: number; away_score: number; winner_team_id: string | null }> = [];
   const inserts: MatchInsert[] = [];
 
   for (const f of finished) {
@@ -268,6 +287,8 @@ export async function patchScoresFromOpenFootball() {
         status: "finished",
         home_score: ft[0],
         away_score: ft[1],
+        winner_team_id:
+          f.winner === f.team1 ? id1 : f.winner === f.team2 ? id2 : resolvedWinnerTeamId(id1, id2, ft[0], ft[1]),
         stage: f.group ?? f.round ?? "Group Stage",
         round: f.round ?? "Matchday",
         venue: f.ground ?? null,
@@ -281,8 +302,14 @@ export async function patchScoresFromOpenFootball() {
     const { m, rev } = entry;
     const hs = rev ? ft[1] : ft[0];
     const as_ = rev ? ft[0] : ft[1];
-    if (m.status === "finished" && m.home_score === hs && m.away_score === as_) continue;
-    updates.push({ id: m.id, home_score: hs, away_score: as_ });
+    const winnerTeamId =
+      f.winner === f.team1
+        ? id1
+        : f.winner === f.team2
+          ? id2
+          : resolvedWinnerTeamId(m.home_team_id, m.away_team_id, hs, as_);
+    if (m.status === "finished" && m.home_score === hs && m.away_score === as_ && m.winner_team_id === winnerTeamId) continue;
+    updates.push({ id: m.id, home_score: hs, away_score: as_, winner_team_id: winnerTeamId });
   }
 
   if (indexed === 0)
@@ -294,7 +321,7 @@ export async function patchScoresFromOpenFootball() {
           updates.map((u) =>
             supabase
               .from("matches")
-              .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, updated_at: now })
+              .update({ status: "finished", home_score: u.home_score, away_score: u.away_score, winner_team_id: u.winner_team_id, updated_at: now })
               .eq("id", u.id)
           )
         )
@@ -334,7 +361,7 @@ export async function patchScoresFromAPIFootball() {
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
-      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score")
+      .select("id, home_team_id, away_team_id, kickoff_at, status, home_score, away_score, winner_team_id")
       .eq("competition_id", competition.id),
   ]);
 
@@ -360,7 +387,7 @@ export async function patchScoresFromAPIFootball() {
   }
 
   // Build match index: "homeUUID|awayUUID|date" → match row
-  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null };
+  type DbMatch = { id: string; home_team_id: string | null; away_team_id: string | null; kickoff_at: string; status: string; home_score: number | null; away_score: number | null; winner_team_id: string | null };
   const matchIndex = new Map<string, DbMatch>();
   for (const m of (matchesRes.data ?? []) as DbMatch[]) {
     const d = m.kickoff_at?.slice(0, 10);
@@ -371,7 +398,7 @@ export async function patchScoresFromAPIFootball() {
   // Find changed matches by team UUID + date.
   const now = new Date().toISOString();
   let indexed = 0;
-  const updates: Array<{ id: string; status: string; home_score: number | null; away_score: number | null }> = [];
+  const updates: Array<{ id: string; status: string; home_score: number | null; away_score: number | null; winner_team_id: string | null }> = [];
   for (const f of fixtures) {
     const homeId = resolveTeamId(f.home.name);
     const awayId = resolveTeamId(f.away.name);
@@ -382,8 +409,14 @@ export async function patchScoresFromAPIFootball() {
     indexed++;
     // Never downgrade a finished match back to scheduled.
     if (existing.status === "finished" && f.status === "scheduled") continue;
-    if (existing.status === f.status && existing.home_score === f.home_score && existing.away_score === f.away_score) continue;
-    updates.push({ id: existing.id, status: f.status, home_score: f.home_score, away_score: f.away_score });
+    const winnerTeamId =
+      f.winner_external_id === f.home.external_id
+        ? homeId
+        : f.winner_external_id === f.away.external_id
+          ? awayId
+          : resolvedWinnerTeamId(existing.home_team_id, existing.away_team_id, f.home_score, f.away_score);
+    if (existing.status === f.status && existing.home_score === f.home_score && existing.away_score === f.away_score && existing.winner_team_id === winnerTeamId) continue;
+    updates.push({ id: existing.id, status: f.status, home_score: f.home_score, away_score: f.away_score, winner_team_id: winnerTeamId });
   }
 
   // If 0 DB matches were found (likely team name mismatch), signal for fallback.
@@ -393,12 +426,26 @@ export async function patchScoresFromAPIFootball() {
   if (updates.length > 0) {
     await Promise.all(
       updates.map((u) =>
-        supabase.from("matches").update({ status: u.status as "finished" | "live" | "scheduled", home_score: u.home_score, away_score: u.away_score, updated_at: now }).eq("id", u.id)
+        supabase.from("matches").update({ status: u.status as "finished" | "live" | "scheduled", home_score: u.home_score, away_score: u.away_score, winner_team_id: u.winner_team_id, updated_at: now }).eq("id", u.id)
       )
     );
   }
 
   return { source: "api-football", matches: updates.length, indexed };
+}
+
+/** Automatic score updater used by cron/admin sync. OpenFootball is the broad
+ * free source; API-Football runs afterwards to fill knockout penalty winners
+ * when a tied fixture exposes teams.home/away.winner. */
+export async function patchScoresAutomatically() {
+  const openfootball = await patchScoresFromOpenFootball();
+  const apiFootball = await patchScoresFromAPIFootball();
+  return {
+    source: "auto",
+    matches: (openfootball.matches ?? 0) + (apiFootball.matches ?? 0),
+    openfootball,
+    apiFootball,
+  };
 }
 
 /**
@@ -462,6 +509,17 @@ export async function syncWorldCup() {
     minute: f.minute,
     home_score: f.home_score,
     away_score: f.away_score,
+    winner_team_id:
+      f.winner_external_id === f.home.external_id
+        ? idByExt.get(f.home.external_id) ?? null
+        : f.winner_external_id === f.away.external_id
+          ? idByExt.get(f.away.external_id) ?? null
+          : resolvedWinnerTeamId(
+              idByExt.get(f.home.external_id) ?? null,
+              idByExt.get(f.away.external_id) ?? null,
+              f.home_score,
+              f.away_score
+            ),
     stage: f.stage,
     round: f.round,
     venue: f.venue,

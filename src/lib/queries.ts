@@ -26,7 +26,7 @@ export const getMatches = cache(async (competitionId: string): Promise<MatchRow[
   const supabase = await createClient();
   const { data } = await supabase
     .from("matches")
-    .select(`id,competition_id,kickoff_at,status,minute,home_score,away_score,stage,${TEAM_SELECT}`)
+    .select(`id,competition_id,kickoff_at,status,minute,home_score,away_score,winner_team_id,stage,${TEAM_SELECT}`)
     .eq("competition_id", competitionId)
     .order("kickoff_at", { ascending: true });
   // Supabase returns related rows as arrays for some shapes; normalise to single.
@@ -37,7 +37,7 @@ export async function getMatchById(id: string): Promise<MatchRow | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("matches")
-    .select(`id,competition_id,kickoff_at,status,minute,home_score,away_score,stage,${TEAM_SELECT}`)
+    .select(`id,competition_id,kickoff_at,status,minute,home_score,away_score,winner_team_id,stage,${TEAM_SELECT}`)
     .eq("id", id)
     .maybeSingle();
   return data ? normaliseMatch(data as unknown as Record<string, unknown>) : null;
@@ -47,6 +47,7 @@ export interface MatchPrediction {
   user_id: string;
   home_score: number;
   away_score: number;
+  winner_team_id: string | null;
   display_name: string;
   avatar_url: string | null;
 }
@@ -85,7 +86,7 @@ export async function getMatchPredictions(
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
-    .select("user_id, home_score, away_score, author:profiles(display_name, avatar_url)")
+    .select("user_id, home_score, away_score, winner_team_id, author:profiles(display_name, avatar_url)")
     .eq("match_id", matchId)
     .eq("group_id", groupId);
 
@@ -96,6 +97,7 @@ export async function getMatchPredictions(
         user_id: p.user_id,
         home_score: p.home_score,
         away_score: p.away_score,
+        winner_team_id: p.winner_team_id ?? null,
         display_name: a?.display_name ?? "Jugador",
         avatar_url: a?.avatar_url ?? null,
       };
@@ -106,16 +108,16 @@ export async function getMatchPredictions(
 /** The user's match predictions in one group, as a map by match id.
  *  Per-request memoised: the nav badge, dashboard and matches page share it. */
 export const getMyPredictions = cache(async (userId: string, groupId: string | null) => {
-  const map = new Map<string, { home: number; away: number }>();
+  const map = new Map<string, { home: number; away: number; winnerTeamId: string | null }>();
   if (!groupId) return map;
   const supabase = await createClient();
   const { data } = await supabase
     .from("predictions")
-    .select("match_id,home_score,away_score")
+    .select("match_id,home_score,away_score,winner_team_id")
     .eq("user_id", userId)
     .eq("group_id", groupId);
   for (const p of data ?? []) {
-    map.set(p.match_id, { home: p.home_score, away: p.away_score });
+    map.set(p.match_id, { home: p.home_score, away: p.away_score, winnerTeamId: p.winner_team_id ?? null });
   }
   return map;
 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
-import { patchScoresFromOpenFootball } from "@/lib/sync";
+import { patchScoresAutomatically } from "@/lib/sync";
 import { syncSquadsFIFA } from "@/lib/fifa";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       const result = await syncSquadsFIFA(createServiceClient());
       return NextResponse.json({ ok: true, ...result });
     }
-    const patch = await patchScoresFromOpenFootball();
+    const patch = await patchScoresAutomatically();
     return NextResponse.json({ ok: true, ...patch });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

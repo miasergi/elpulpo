@@ -10,6 +10,7 @@ import { TeamFlag } from "@/components/match/team-flag";
 import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { kickoffLabel, isLocked, statusBadge } from "@/lib/format";
+import { awardsAdvanceBonus } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               match={match}
               initialHome={myPred?.home ?? null}
               initialAway={myPred?.away ?? null}
+              initialWinnerTeamId={myPred?.winnerTeamId ?? null}
               userId={profile.id}
               groupId={group?.id ?? null}
               scoring={
@@ -86,6 +88,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               predictions={predictions}
               actualHome={match.home_score}
               actualAway={match.away_score}
+              actualWinnerTeamId={match.winner_team_id}
+              homeTeamId={match.home_team?.id ?? null}
+              awayTeamId={match.away_team?.id ?? null}
+              homeName={match.home_team?.short_name ?? match.home_team?.name ?? "Local"}
+              awayName={match.away_team?.short_name ?? match.away_team?.name ?? "Visitante"}
+              awardAdvance={awardsAdvanceBonus(match.stage)}
               currentUserId={profile.id}
             />
           </>

@@ -69,6 +69,7 @@ export interface Database {
           minute: number | null;
           home_score: number | null;
           away_score: number | null;
+          winner_team_id: string | null;
           stage: string | null;
           round: string | null;
           venue: string | null;
@@ -140,6 +141,7 @@ export interface Database {
           group_id: string;
           home_score: number;
           away_score: number;
+          winner_team_id: string | null;
           created_at: string;
           updated_at: string;
         };

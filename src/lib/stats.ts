@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { predictionPoints, matchMultiplier, awardsAdvanceBonus } from "@/lib/scoring";
 
 export interface PlayerStats {
   played: number;        // finished matches the user predicted
@@ -23,7 +24,7 @@ export async function getPlayerStats(userId: string, groupId: string | null): Pr
     supabase
       .from("predictions")
       .select(
-        "home_score, away_score, match:matches(kickoff_at, status, home_score, away_score, home_team_id, away_team_id, home:teams!matches_home_team_id_fkey(double_points), away:teams!matches_away_team_id_fkey(double_points))"
+        "home_score, away_score, winner_team_id, match:matches(kickoff_at, status, home_score, away_score, winner_team_id, home_team_id, away_team_id, stage, home:teams!matches_home_team_id_fkey(id,double_points), away:teams!matches_away_team_id_fkey(id,double_points))"
       )
       .eq("user_id", userId)
       .eq("group_id", groupId),
@@ -39,30 +40,40 @@ export async function getPlayerStats(userId: string, groupId: string | null): Pr
   const rows = (data ?? [])
     .map((p) => {
       const m = Array.isArray(p.match) ? p.match[0] : p.match;
-      return { ph: p.home_score, pa: p.away_score, m };
+      return { ph: p.home_score, pa: p.away_score, winnerTeamId: p.winner_team_id ?? null, m };
     })
     .filter((r) => r.m && r.m.status === "finished" && r.m.home_score != null && r.m.away_score != null)
     .sort((a, b) => new Date(a.m!.kickoff_at).getTime() - new Date(b.m!.kickoff_at).getTime());
 
-  let exacts = 0, results = 0, goalDiffs = 0, points = 0;
+  let exacts = 0, results = 0, points = 0;
+  const goalDiffs = 0;
   let bestStreak = 0, currentStreak = 0, run = 0;
 
-  for (const { ph, pa, m } of rows) {
+  for (const { ph, pa, winnerTeamId, m } of rows) {
     const ah = m!.home_score!;
     const aa = m!.away_score!;
     const one = (v: unknown) => (Array.isArray(v) ? v[0] ?? null : v ?? null);
-    const home = one(m!.home) as { double_points?: boolean } | null;
-    const away = one(m!.away) as { double_points?: boolean } | null;
-    const mult =
-      home?.double_points || away?.double_points ||
-      (underdog && (m!.home_team_id === underdog || m!.away_team_id === underdog))
-        ? 2
-        : 1;
+    const home = one(m!.home) as { id?: string; double_points?: boolean } | null;
+    const away = one(m!.away) as { id?: string; double_points?: boolean } | null;
+    const mult = matchMultiplier(home ? { id: m!.home_team_id!, double_points: home.double_points } : null, away ? { id: m!.away_team_id!, double_points: away.double_points } : null, underdog);
     const sameResult = Math.sign(ph - pa) === Math.sign(ah - aa);
+    points +=
+      predictionPoints(
+        ph,
+        pa,
+        ah,
+        aa,
+        DEFAULTS,
+        winnerTeamId,
+        m!.winner_team_id,
+        m!.home_team_id,
+        m!.away_team_id,
+        awardsAdvanceBonus((m as { stage?: string | null }).stage ?? null)
+      ) * mult;
     if (ph === ah && pa === aa) {
-      exacts++; results++; points += DEFAULTS.exact * mult;
+      exacts++; results++;
     } else if (sameResult) {
-      results++; points += DEFAULTS.result * mult;
+      results++;
     }
     if (sameResult) {
       run++;

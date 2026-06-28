@@ -24,6 +24,8 @@ function AdminMatchRow({ match }: { match: MatchRow }) {
   const [away, setAway] = useState<string>(match.away_score?.toString() ?? "");
   const [status, setStatus] = useState<MatchStatus>(match.status);
   const [saving, setSaving] = useState(false);
+  const homeNumber = home === "" ? null : Number(home);
+  const awayNumber = away === "" ? null : Number(away);
 
   async function save() {
     setSaving(true);
@@ -32,8 +34,8 @@ function AdminMatchRow({ match }: { match: MatchRow }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: match.id,
-        home_score: home === "" ? null : Number(home),
-        away_score: away === "" ? null : Number(away),
+        home_score: homeNumber,
+        away_score: awayNumber,
         status,
       }),
     });

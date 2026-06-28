@@ -17,8 +17,8 @@ interface FixtureResponse {
   };
   league: { round: string };
   teams: {
-    home: { id: number; name: string; logo: string };
-    away: { id: number; name: string; logo: string };
+    home: { id: number; name: string; logo: string; winner?: boolean | null };
+    away: { id: number; name: string; logo: string; winner?: boolean | null };
   };
   goals: { home: number | null; away: number | null };
 }
@@ -61,6 +61,7 @@ export interface NormalisedFixture {
   stage: string;
   round: string;
   venue: string | null;
+  winner_external_id: number | null;
   home: { external_id: number; name: string; flag_url: string };
   away: { external_id: number; name: string; flag_url: string };
 }
@@ -80,6 +81,7 @@ export async function fetchWorldCupFixtures(
     stage: f.league.round,
     round: f.league.round,
     venue: f.fixture.venue.name,
+    winner_external_id: f.teams.home.winner ? f.teams.home.id : f.teams.away.winner ? f.teams.away.id : null,
     home: { external_id: f.teams.home.id, name: f.teams.home.name, flag_url: f.teams.home.logo },
     away: { external_id: f.teams.away.id, name: f.teams.away.name, flag_url: f.teams.away.logo },
   }));

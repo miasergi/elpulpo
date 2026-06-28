@@ -15,7 +15,7 @@ export function TournamentTabs({
   hasGroups: boolean;
   hasKnockout: boolean;
 }) {
-  const [tab, setTab] = useState<"groups" | "ko">(hasGroups ? "groups" : "ko");
+  const [tab, setTab] = useState<"groups" | "ko">(hasKnockout ? "ko" : "groups");
 
   return (
     <div>

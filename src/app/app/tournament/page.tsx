@@ -18,7 +18,7 @@ export default async function TournamentPage() {
     return (
       <div className="px-5">
         <PageHeader title="El Mundial" />
-        <p className="mt-12 text-center text-sm text-muted">Aún no hay competición activa.</p>
+        <p className="mt-12 text-center text-sm text-muted">Aun no hay competicion activa.</p>
       </div>
     );
   }
@@ -29,16 +29,14 @@ export default async function TournamentPage() {
     <div className="px-5">
       <PageHeader title="El Mundial" subtitle={competition.name} />
 
-      {/* Predict the latter stages now (via bonus); the match-by-match bracket
-          becomes predictable as soon as the knockout fixtures are set. */}
       <Link
-        href="/app/bonus"
+        href="/app/matches"
         className="mb-3 mt-1 flex items-center gap-3 rounded-lg border border-pulpo-500/40 bg-pulpo-500/10 p-3.5"
       >
         <Trophy className="h-5 w-5 text-pulpo-300" />
         <div className="flex-1">
-          <p className="text-sm font-semibold">Predice la fase final</p>
-          <p className="text-xs text-muted">Campeón, subcampeón y ganadores de grupo · puntos extra</p>
+          <p className="text-sm font-semibold">Haz tus porras de eliminatorias</p>
+          <p className="text-xs text-muted">1X2, marcador exacto y equipo que pasa de ronda</p>
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </Link>

@@ -13,13 +13,26 @@ export async function POST(request: Request) {
     away_score: number | null;
     status: MatchStatus;
   };
-
   const supabase = createServiceClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("home_team_id, away_team_id")
+    .eq("id", body.id)
+    .maybeSingle();
+  const winnerTeamId =
+    body.home_score != null && body.away_score != null && body.home_score === body.away_score
+      ? null
+      : body.home_score != null && body.away_score != null && body.home_score > body.away_score
+        ? match?.home_team_id ?? null
+        : body.home_score != null && body.away_score != null && body.home_score < body.away_score
+          ? match?.away_team_id ?? null
+          : null;
   const { error } = await supabase
     .from("matches")
     .update({
       home_score: body.home_score,
       away_score: body.away_score,
+      winner_team_id: winnerTeamId,
       status: body.status,
       updated_at: new Date().toISOString(),
     })

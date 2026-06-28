@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, home_team_id, away_team_id, status, home_score, away_score")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score, winner_team_id")
     .eq("competition_id", comp.id);
 
   const now = new Date().toISOString();
@@ -63,9 +63,10 @@ export async function POST(request: Request) {
 
     if (!match) { updated.push(`NO MATCH ROW: ${home} vs ${away}`); continue; }
 
+    const winnerTeamId = homeScore > awayScore ? match.home_team_id : awayScore > homeScore ? match.away_team_id : null;
     const { error } = await supabase
       .from("matches")
-      .update({ status: "finished", home_score: homeScore, away_score: awayScore, updated_at: now })
+      .update({ status: "finished", home_score: homeScore, away_score: awayScore, winner_team_id: winnerTeamId, updated_at: now })
       .eq("id", match.id);
 
     updated.push(error ? `ERROR ${home} vs ${away}: ${error.message}` : `OK ${home} ${hs}-${as_} ${away}`);

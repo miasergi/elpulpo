@@ -12,6 +12,7 @@ type Filter = "proximos" | "hoy" | "sin-predecir" | "resultados" | "todos";
 export interface PredictionLite {
   home: number;
   away: number;
+  winnerTeamId: string | null;
 }
 
 export function MatchesBrowser({
@@ -135,6 +136,7 @@ export function MatchesBrowser({
                       match={m}
                       initialHome={p?.home ?? null}
                       initialAway={p?.away ?? null}
+                      initialWinnerTeamId={p?.winnerTeamId ?? null}
                       userId={userId}
                       groupId={groupId}
                       scoring={scoring}

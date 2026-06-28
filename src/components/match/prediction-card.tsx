@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { playTick } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { predictionPoints, matchMultiplier, type ScoringRules } from "@/lib/scoring";
+import { predictionPoints, matchMultiplier, needsTiebreakWinner, awardsAdvanceBonus, type ScoringRules } from "@/lib/scoring";
 import { TeamFlag, type TeamLite } from "./team-flag";
 import { kickoffLabel, isLocked, statusBadge } from "@/lib/format";
 import type { MatchStatus } from "@/lib/database.types";
@@ -21,6 +21,7 @@ export interface MatchWithTeams {
   minute: number | null;
   home_score: number | null;
   away_score: number | null;
+  winner_team_id: string | null;
   stage: string | null;
   home_team: TeamLite | null;
   away_team: TeamLite | null;
@@ -30,6 +31,7 @@ export function PredictionCard({
   match,
   initialHome,
   initialAway,
+  initialWinnerTeamId,
   userId,
   groupId,
   scoring = null,
@@ -39,6 +41,7 @@ export function PredictionCard({
   match: MatchWithTeams;
   initialHome: number | null;
   initialAway: number | null;
+  initialWinnerTeamId: string | null;
   userId: string;
   /** Group the prediction belongs to; null = user has no active group yet. */
   groupId: string | null;
@@ -52,9 +55,11 @@ export function PredictionCard({
   const router = useRouter();
   const [home, setHome] = useState<number | null>(initialHome);
   const [away, setAway] = useState<number | null>(initialAway);
+  const [winnerTeamId, setWinnerTeamId] = useState<string | null>(initialWinnerTeamId);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const badge = statusBadge(match.status, match.minute);
+  const canAwardAdvance = awardsAdvanceBonus(match.stage);
 
   function bump(side: "home" | "away", delta: number) {
     if (locked || !groupId) return;
@@ -63,10 +68,18 @@ export function PredictionCard({
     setState("idle");
   }
 
+  function pickWinner(teamId: string | null) {
+    if (locked || !groupId || !teamId) return;
+    setWinnerTeamId(teamId);
+    setState("idle");
+  }
+
   // Debounced auto-save once both scores are set.
   useEffect(() => {
     if (locked || !groupId || home === null || away === null) return;
-    if (home === initialHome && away === initialAway) return;
+    const tiebreakWinnerId = canAwardAdvance && home === away ? winnerTeamId : null;
+    if (canAwardAdvance && home === away && !tiebreakWinnerId) return;
+    if (home === initialHome && away === initialAway && tiebreakWinnerId === initialWinnerTeamId) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       // Re-check at save time: the page may have been open since before kickoff.
@@ -80,7 +93,14 @@ export function PredictionCard({
       const { error } = await supabase
         .from("predictions")
         .upsert(
-          { user_id: userId, match_id: match.id, group_id: groupId, home_score: home, away_score: away },
+          {
+            user_id: userId,
+            match_id: match.id,
+            group_id: groupId,
+            home_score: home,
+            away_score: away,
+            winner_team_id: tiebreakWinnerId,
+          },
           { onConflict: "user_id,match_id,group_id" }
         );
       if (error) {
@@ -102,17 +122,30 @@ export function PredictionCard({
       if (timer.current) clearTimeout(timer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, away]);
+  }, [home, away, winnerTeamId]);
 
   const predicted = home !== null && away !== null;
+  const needsWinner = canAwardAdvance && needsTiebreakWinner(home, away);
+  const predictionComplete = predicted && (!needsWinner || !!winnerTeamId);
   const hasResult = match.home_score !== null && match.away_score !== null;
 
   // x2 multiplier (España / underdog pick) and points earned.
   const mult = matchMultiplier(match.home_team, match.away_team, underdogTeamId);
   const isDoubleTeam = match.home_team?.double_points || match.away_team?.double_points;
   const basePts =
-    scoring && predicted && locked && hasResult
-      ? predictionPoints(home!, away!, match.home_score, match.away_score, scoring)
+    scoring && predictionComplete && locked && hasResult
+      ? predictionPoints(
+          home!,
+          away!,
+          match.home_score,
+          match.away_score,
+          scoring,
+          winnerTeamId,
+          match.winner_team_id,
+          match.home_team?.id ?? null,
+          match.away_team?.id ?? null,
+          canAwardAdvance
+        )
       : null;
   const earned = basePts !== null ? basePts * mult : null;
   const hitExact =
@@ -175,6 +208,28 @@ export function PredictionCard({
         <TeamSide team={match.away_team} align="right" />
       </div>
 
+      {needsWinner && (
+        <div className="mt-3 rounded-md border border-border bg-surface/50 p-2">
+          <p className="mb-2 text-center text-[11px] font-medium text-muted">
+            En empate, elige quien pasa por penaltis
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <WinnerButton
+              team={match.home_team}
+              selected={winnerTeamId === match.home_team?.id}
+              locked={locked}
+              onClick={() => pickWinner(match.home_team?.id ?? null)}
+            />
+            <WinnerButton
+              team={match.away_team}
+              selected={winnerTeamId === match.away_team?.id}
+              locked={locked}
+              onClick={() => pickWinner(match.away_team?.id ?? null)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Footer: actual result / points / save state */}
       <div className="mt-3 flex h-5 items-center justify-center text-xs">
         {locked && hasResult ? (
@@ -203,7 +258,7 @@ export function PredictionCard({
               </span>
             )}
           </span>
-        ) : locked && !predicted ? (
+        ) : locked && !predictionComplete ? (
           <span className="text-muted-foreground">No predijiste este partido</span>
         ) : !groupId ? (
           <Link href="/app/groups" className="font-medium text-pulpo-300">
@@ -215,7 +270,9 @@ export function PredictionCard({
           <span className="flex items-center gap-1 text-pitch-400">
             <Check className="h-3.5 w-3.5" /> Guardado
           </span>
-        ) : predicted ? (
+        ) : needsWinner && !winnerTeamId ? (
+          <span className="text-warning">Elige quien pasa para guardar</span>
+        ) : predictionComplete ? (
           <span className="flex items-center gap-1 text-pitch-400/80">
             <Check className="h-3.5 w-3.5" /> Predicción guardada
           </span>
@@ -233,6 +290,35 @@ export function PredictionCard({
         </Link>
       )}
     </div>
+  );
+}
+
+function WinnerButton({
+  team,
+  selected,
+  locked,
+  onClick,
+}: {
+  team: TeamLite | null;
+  selected: boolean;
+  locked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={locked || !team}
+      className={cn(
+        "flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold transition-colors disabled:opacity-70",
+        selected
+          ? "border-pitch-500/70 bg-pitch-500/15 text-pitch-400"
+          : "border-border bg-surface-2 text-muted hover:bg-surface-3"
+      )}
+    >
+      {selected && <Check className="h-3.5 w-3.5" />}
+      <span className="truncate">{team?.short_name ?? team?.name ?? "Por definir"}</span>
+    </button>
   );
 }
 

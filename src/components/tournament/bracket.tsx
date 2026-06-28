@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { TeamFlag } from "@/components/match/team-flag";
 import { Badge } from "@/components/ui/badge";
 import { kickoffLabel, statusBadge, isLocked } from "@/lib/format";
+import { advancingTeam } from "@/lib/scoring";
 import type { KnockoutRound } from "@/lib/tournament";
 import type { MatchRow } from "@/lib/queries";
 
@@ -33,8 +34,18 @@ export function Bracket({ rounds }: { rounds: KnockoutRound[] }) {
 function KoMatch({ match }: { match: MatchRow }) {
   const finished = match.status === "finished" && match.home_score != null && match.away_score != null;
   const badge = statusBadge(match.status, match.minute);
-  const homeWon = finished && match.home_score! > match.away_score!;
-  const awayWon = finished && match.away_score! > match.home_score!;
+  const winnerTeamId = finished
+    ? advancingTeam(
+        match.home_score,
+        match.away_score,
+        match.home_team?.id ?? null,
+        match.away_team?.id ?? null,
+        match.winner_team_id
+      )
+    : null;
+  const homeWon = winnerTeamId === match.home_team?.id;
+  const awayWon = winnerTeamId === match.away_team?.id;
+  const penalties = finished && match.home_score === match.away_score && !!winnerTeamId;
   // Predictable once the teams are set and it hasn't kicked off.
   const predictable =
     !isLocked(match.status, match.kickoff_at) && !!match.home_team && !!match.away_team;
@@ -48,6 +59,7 @@ function KoMatch({ match }: { match: MatchRow }) {
       <KoSide team={match.home_team} score={match.home_score} winner={homeWon} dim={awayWon} />
       <div className="my-1 h-px bg-border/50" />
       <KoSide team={match.away_team} score={match.away_score} winner={awayWon} dim={homeWon} />
+      {penalties && <p className="mt-1 text-right text-[10px] text-muted-foreground">pasa por penaltis</p>}
       {predictable && (
         <div className="mt-2 flex items-center justify-center gap-1 border-t border-border/60 pt-2 text-[11px] font-medium text-pulpo-300">
           Predecir este cruce <ChevronRight className="h-3 w-3" />
