@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Trophy, ChevronUp, ChevronDown, Minus, Crown, Radio, LineChart } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +9,50 @@ import { kickoffLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TimelineEntry, TimelinePlayer, BonusTimelineEntry } from "@/lib/groups";
 
+/** Collapsible section with a header that toggles its content open/closed. */
+export function CollapsibleSection({
+  title,
+  icon: Icon,
+  count,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  icon: typeof Trophy;
+  count?: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="mb-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
+      >
+        <Icon className="h-4 w-4 shrink-0 text-pulpo-300" />
+        <span className="flex-1 text-sm font-bold">{title}</span>
+        {count != null && (
+          <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted-foreground tabular-nums">
+            {count}
+          </span>
+        )}
+        <ChevronDown
+          className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
 export function BonusTimeline({ entries }: { entries: BonusTimelineEntry[] }) {
   if (entries.length === 0) return null;
 
   return (
-    <div className="mb-4 space-y-3">
+    <div className="space-y-3">
       {entries.map((entry) => (
         <div key={entry.id} className="overflow-hidden rounded-lg border border-warning/35 bg-warning/10">
           <div className="flex items-center justify-between gap-2 border-b border-warning/20 px-3 py-2.5">

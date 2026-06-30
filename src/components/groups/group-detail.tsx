@@ -16,7 +16,7 @@ import { InviteCard } from "./invite-card";
 import { GroupBadge } from "./group-badge";
 import { GroupMatches } from "./group-matches";
 import { GroupSettings } from "./group-settings";
-import { BonusTimeline, PointsTimeline, TimelineIntro } from "./points-timeline";
+import { BonusTimeline, PointsTimeline, TimelineIntro, CollapsibleSection } from "./points-timeline";
 import { ShareRank } from "./share-rank";
 import { ScoringEditor } from "./scoring-editor";
 import type { StandingRow, TimelineEntry, GroupUpcomingMatch, GroupRecentMatch, MemberBonusInfo, BonusTimelineEntry } from "@/lib/groups";
@@ -176,8 +176,19 @@ export function GroupDetail({
         {tab === "activity" && (
           <>
             <TimelineIntro />
-            <BonusTimeline entries={bonusTimeline} />
-            <PointsTimeline entries={timeline} currentUserId={currentUserId} />
+            <CollapsibleSection
+              title="Partidos"
+              icon={CalendarClock}
+              count={timeline.length}
+              defaultOpen
+            >
+              <PointsTimeline entries={timeline} currentUserId={currentUserId} />
+            </CollapsibleSection>
+            {bonusTimeline.length > 0 && (
+              <CollapsibleSection title="Ganadores de grupo" icon={Sparkles} count={bonusTimeline.length}>
+                <BonusTimeline entries={bonusTimeline} />
+              </CollapsibleSection>
+            )}
           </>
         )}
 
