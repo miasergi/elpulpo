@@ -65,11 +65,16 @@ function openFootballWinnerTeamId(
   homeTeamId: string,
   awayTeamId: string,
   homeScore: number | null,
-  awayScore: number | null
+  awayScore: number | null,
+  pens?: [number, number] | null
 ) {
   if (winner === team1) return id1;
   if (winner === team2) return id2;
-  return resolvedWinnerTeamId(homeTeamId, awayTeamId, homeScore, awayScore);
+  const byScore = resolvedWinnerTeamId(homeTeamId, awayTeamId, homeScore, awayScore);
+  if (byScore) return byScore;
+  // Tie decided on penalties: openfootball `p` is [team1, team2] = [id1, id2].
+  if (pens && pens[0] !== pens[1]) return pens[0] > pens[1] ? id1 : id2;
+  return null;
 }
 
 async function resolveGroupWinnerBonuses(
@@ -307,7 +312,11 @@ export async function patchScoresFromOpenFootball() {
     time?: string | null;
     round?: string; group?: string; ground?: string;
     winner?: string | null;
-    score?: { ft?: [number, number] | null };
+    score?: {
+      ft?: [number, number] | null;
+      et?: [number, number] | null; // score after extra time (final on-field result)
+      p?: [number, number] | null;  // penalty shootout, [team1, team2]
+    };
   };
   let json: { matches: OFMatch[] };
   try {
@@ -469,7 +478,12 @@ export async function patchScoresFromOpenFootball() {
   let knockoutIndex = 0;
 
   for (const f of json.matches) {
-    const ft = f.score?.ft ?? null;
+    const pens = f.score?.p ?? null;
+    // openfootball: `ft` is the 90-minute score; `et` is the final on-field
+    // score when a knockout goes to extra time. Prefer et so a tie that ends
+    // 2-2 (90') / 3-2 (aet) stores 3-2. `p` (penalties) only breaks a level tie
+    // for the winner — the stored scoreline stays at the et/ft draw.
+    const ft = f.score?.et ?? f.score?.ft ?? null;
     const isFinished = Array.isArray(ft);
     const isKnockout = !f.group;
     const matchNumber = isKnockout ? 73 + knockoutIndex++ : null;
@@ -511,7 +525,7 @@ export async function patchScoresFromOpenFootball() {
         const correctedEntry: DbMatch = { ...numberEntry, home_team_id: id1, away_team_id: id2, kickoff_at: kickoffAt };
         matchIndex.set(`${id1}|${id2}|${d1}`, { m: correctedEntry, rev: false });
         matchIndex.set(`${id2}|${id1}|${d1}`, { m: correctedEntry, rev: true });
-        const correctedWinner = openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore);
+        const correctedWinner = openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore, pens);
         numberToMatch.set(matchNumber!, { ...correctedEntry, winner_team_id: correctedWinner });
         updates.push({
           id: numberEntry.id,
@@ -538,7 +552,7 @@ export async function patchScoresFromOpenFootball() {
         status,
         home_score: homeScore,
         away_score: awayScore,
-        winner_team_id: openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore),
+        winner_team_id: openFootballWinnerTeamId(f.winner, f.team1, f.team2, id1, id2, id1, id2, homeScore, awayScore, pens),
         stage,
         round,
         venue: f.ground ?? null,
@@ -562,7 +576,8 @@ export async function patchScoresFromOpenFootball() {
       m.home_team_id ?? id1,
       m.away_team_id ?? id2,
       hs,
-      as_
+      as_,
+      pens
     );
     if (
       m.status === status &&
