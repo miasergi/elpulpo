@@ -419,6 +419,8 @@ export interface BonusTimelineEntry {
   label: string;
   points: number;
   correctAnswer: string;
+  /** Group-winner markets are shown apart from the headline bonus ones. */
+  isGroupWinner: boolean;
   players: BonusTimelinePlayer[];
 }
 
@@ -543,10 +545,10 @@ export async function getGroupBonusTimeline(
   const [{ data: markets }, { data: preds }, { data: teams }] = await Promise.all([
     supabase
       .from("bonus_markets")
-      .select("id,key,label,kind,points,correct_team_id,correct_text")
+      .select("id,key,label,kind,points,correct_team_id,correct_team_ids,correct_text")
       .eq("competition_id", competitionId)
       .eq("resolved", true)
-      .like("key", "group_winner_%")
+      .order("points", { ascending: false })
       .order("key", { ascending: true }),
     supabase
       .from("bonus_predictions")
@@ -562,14 +564,31 @@ export async function getGroupBonusTimeline(
   const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
 
   return (markets ?? []).map((m) => {
-    const correctTeam = m.correct_team_id ? teamById.get(m.correct_team_id) : null;
-    const correctAnswer = correctTeam?.short_name ?? correctTeam?.name ?? m.correct_text ?? "Resuelto";
+    // Mirrors the scoring in group_standings: team markets accept the single
+    // correct_team_id or any of correct_team_ids, text ones any pipe-separated
+    // alternative. Keep the two in sync or the timeline lies about the points.
+    const correctTeamIds = [m.correct_team_id, ...(m.correct_team_ids ?? [])].filter(
+      (id): id is string => !!id
+    );
+    const correctTexts = (m.correct_text ?? "")
+      .split("|")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const teamNames = correctTeamIds
+      .map((id) => teamById.get(id))
+      .map((t) => t?.short_name ?? t?.name)
+      .filter(Boolean);
+    const correctAnswer =
+      (m.kind === "team" ? teamNames.join(", ") : "") || m.correct_text || "Resuelto";
     const players = memberIds.map((id) => {
       const prof = profileById.get(id);
       const pred = byMarketUser.get(`${m.id}:${id}`);
       const predTeam = pred?.team_id ? teamById.get(pred.team_id) : null;
       const answer = predTeam?.short_name ?? predTeam?.name ?? pred?.answer_text ?? null;
-      const correct = m.kind === "team" ? pred?.team_id === m.correct_team_id : false;
+      const correct =
+        m.kind === "team"
+          ? !!pred?.team_id && correctTeamIds.includes(pred.team_id)
+          : correctTexts.includes((pred?.answer_text ?? "").trim().toLowerCase());
       return {
         user_id: id,
         display_name: prof?.display_name ?? "Jugador",
@@ -584,6 +603,7 @@ export async function getGroupBonusTimeline(
       label: m.label,
       points: m.points,
       correctAnswer,
+      isGroupWinner: m.key.startsWith("group_winner_"),
       players: players.sort((a, b) => b.points - a.points || a.display_name.localeCompare(b.display_name)),
     };
   });

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trophy, MessageCircle, Info, LogOut, Trash2, LineChart, CalendarClock, Sparkles } from "lucide-react";
+import { Trophy, MessageCircle, Info, LogOut, Trash2, LineChart, CalendarClock, Sparkles, Award } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -184,9 +184,22 @@ export function GroupDetail({
             >
               <PointsTimeline entries={timeline} currentUserId={currentUserId} />
             </CollapsibleSection>
-            {bonusTimeline.length > 0 && (
-              <CollapsibleSection title="Ganadores de grupo" icon={Sparkles} count={bonusTimeline.length}>
-                <BonusTimeline entries={bonusTimeline} />
+            {bonusTimeline.some((e) => !e.isGroupWinner) && (
+              <CollapsibleSection
+                title="Porras bonus"
+                icon={Award}
+                count={bonusTimeline.filter((e) => !e.isGroupWinner).length}
+              >
+                <BonusTimeline entries={bonusTimeline.filter((e) => !e.isGroupWinner)} />
+              </CollapsibleSection>
+            )}
+            {bonusTimeline.some((e) => e.isGroupWinner) && (
+              <CollapsibleSection
+                title="Ganadores de grupo"
+                icon={Sparkles}
+                count={bonusTimeline.filter((e) => e.isGroupWinner).length}
+              >
+                <BonusTimeline entries={bonusTimeline.filter((e) => e.isGroupWinner)} />
               </CollapsibleSection>
             )}
           </>
