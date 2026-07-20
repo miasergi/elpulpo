@@ -706,7 +706,7 @@ export async function getGroupBonusBoard(
   const [{ data: markets }, { data: preds }, { data: members }] = await Promise.all([
     supabase
       .from("bonus_markets")
-      .select("id,label,kind,points,resolved,correct_team_id,correct_text")
+      .select("id,label,kind,points,resolved,correct_team_id,correct_team_ids,correct_text")
       .eq("competition_id", competitionId)
       .order("points", { ascending: false }),
     supabase
@@ -757,7 +757,9 @@ export async function getGroupBonusBoard(
     if (market.resolved) {
       const ok =
         market.kind === "team"
-          ? team?.id === market.correct_team_id
+          ? !!team &&
+            (team.id === market.correct_team_id ||
+              (market.correct_team_ids ?? []).includes(team.id))
           : (market.correct_text ?? "")
               .split("|")
               .map((s) => s.trim().toLowerCase())

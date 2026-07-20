@@ -160,6 +160,7 @@ export interface Database {
           closes_at: string | null;
           resolved: boolean;
           correct_team_id: string | null;
+          correct_team_ids: string[] | null;
           correct_text: string | null;
           created_at: string;
         };
