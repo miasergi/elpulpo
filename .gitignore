@@ -44,4 +44,8 @@ next-env.d.ts
 dev.log
 .env.local
 
+# simulador de carrera: caché de la API y motor compilado para los scripts
+.career-cache
+.career-build
+
 .vercel

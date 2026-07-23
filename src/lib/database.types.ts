@@ -3,6 +3,9 @@
 
 export type MatchStatus = "scheduled" | "live" | "finished" | "postponed" | "cancelled";
 
+/** Cualquier valor que quepa en una columna jsonb. */
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
 type Rels = [];
 
 export interface Database {
@@ -206,6 +209,24 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]> & { user_id: string; endpoint: string; p256dh: string; auth: string };
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]>;
+        Relationships: Rels;
+      };
+      // Simulador de carrera: se guardan la semilla y las decisiones, no el
+      // estado — el motor es determinista y rehace la carrera al cargarla.
+      career_runs: {
+        Row: {
+          id: string;
+          user_id: string;
+          seed: number;
+          identity: Json;
+          decisions: Json;
+          finished: boolean;
+          summary: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["career_runs"]["Row"]> & { user_id: string; seed: number; identity: Json };
+        Update: Partial<Database["public"]["Tables"]["career_runs"]["Row"]>;
         Relationships: Rels;
       };
     };

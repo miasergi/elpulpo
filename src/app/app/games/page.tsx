@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Shirt, Sparkles, HelpCircle, Grid3x3 } from "lucide-react";
+import { ChevronRight, Shirt, Sparkles, HelpCircle, Grid3x3, TrendingUp } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { PageHeader } from "@/components/app/page-header";
 import { AdBanner } from "@/components/ads/ad-banner";
@@ -7,6 +7,17 @@ import { AdBanner } from "@/components/ads/ad-banner";
 export const dynamic = "force-dynamic";
 
 const GAMES = [
+  {
+    href: "/app/games/simulador-carrera",
+    icon: <TrendingUp className="h-7 w-7" />,
+    iconBg: "bg-warning/20 text-warning",
+    cardBg: "border-warning/40 from-warning/15 via-surface/80 to-primary/10",
+    badge: "Nuevo",
+    title: "Simulador de carrera",
+    desc: "Elige tu país y tu posición, y decide cada dos temporadas: fichajes, cesiones, lesiones y selección, hasta la retirada.",
+    tagline: "De la cantera a la leyenda",
+    taglineColor: "text-warning/80",
+  },
   {
     href: "/app/games/eleven",
     icon: <Shirt className="h-7 w-7" />,
