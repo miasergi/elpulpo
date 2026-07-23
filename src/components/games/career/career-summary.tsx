@@ -9,7 +9,7 @@ import { careerAchievements, careerVerdict, verdictEmoji } from "@/lib/games/car
 import { clubHistory, peakMarketValue, peakOverall, trophyCount } from "@/lib/games/career/engine";
 import { getClub, getCountry } from "@/lib/games/career/data";
 import { flagUrl } from "@/lib/games/career/countries.data";
-import { AWARD_EMOJI, AWARD_NAME, TROPHY_EMOJI, TROPHY_NAME, formatValue } from "@/lib/games/career/text";
+import { AWARD_EMOJI, AWARD_NAME, formatValue, trophyLabel } from "@/lib/games/career/text";
 import { POSITION_NAME } from "@/lib/games/career/constants";
 import type { Award, CareerState, Trophy } from "@/lib/games/career/types";
 import { ClubCrest } from "./club-crest";
@@ -32,7 +32,6 @@ export function CareerSummary({
 }) {
   const verdict = careerVerdict(state);
   const emoji = verdictEmoji(state);
-  const trophies = trophyCount(state);
   const awards = countAwards(state);
   const achievements = careerAchievements(state);
   const unlocked = achievements.filter((a) => a.unlocked);
@@ -80,14 +79,14 @@ export function CareerSummary({
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {TROPHY_ORDER.filter((t) => trophies[t] > 0).map((t) => (
+            {namedTrophies(state).map((t) => (
               <span
-                key={t}
+                key={t.name}
                 className="flex items-center gap-1.5 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs font-bold text-warning"
               >
-                <span className="text-base">{TROPHY_EMOJI[t]}</span>
-                {TROPHY_NAME[t]}
-                {trophies[t] > 1 && <span className="tabular-nums">×{trophies[t]}</span>}
+                <span className="text-base">{t.emoji}</span>
+                {t.name}
+                {t.count > 1 && <span className="tabular-nums">×{t.count}</span>}
               </span>
             ))}
             {AWARD_ORDER.filter((a) => awards[a] > 0).map((a) => (
@@ -193,10 +192,32 @@ function countAwards(state: CareerState): Record<Award, number> {
   return out;
 }
 
+const TROPHY_RANK: Record<Trophy, number> = {
+  world_cup: 0, national_continental: 1, continental_primary: 2,
+  continental_secondary: 3, league: 4, cup: 5,
+};
+
+/**
+ * Los títulos agrupados por su competición real, no por categoría: así en la
+ * vitrina se distingue "LaLiga ×3" de "Premier League ×2" de "Champions
+ * League ×1", en vez de un genérico "Liga ×5".
+ */
+function namedTrophies(state: CareerState): { name: string; emoji: string; count: number; rank: number }[] {
+  const map = new Map<string, { name: string; emoji: string; count: number; rank: number }>();
+  for (const s of state.seasons) {
+    for (const t of s.trophies) {
+      const { name, emoji } = trophyLabel(t, s.leagueId, s.national?.tournament);
+      const cur = map.get(name);
+      if (cur) cur.count += 1;
+      else map.set(name, { name, emoji, count: 1, rank: TROPHY_RANK[t] });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.rank - b.rank || b.count - a.count);
+}
+
 // ── Compartir ────────────────────────────────────────────────────────
 
 function buildShareText(state: CareerState, verdict: string, emoji: string): string {
-  const trophies = trophyCount(state);
   const clubs = clubHistory(state);
   const name = state.identity.lastName.trim() || "Mi futbolista";
   const path = clubs
@@ -204,8 +225,8 @@ function buildShareText(state: CareerState, verdict: string, emoji: string): str
     .map((c) => getClub(c.clubId)?.short ?? c.clubId)
     .join(" → ");
 
-  const palmares = TROPHY_ORDER.filter((t) => trophies[t] > 0)
-    .map((t) => `${TROPHY_EMOJI[t]} ${TROPHY_NAME[t]}${trophies[t] > 1 ? ` ×${trophies[t]}` : ""}`)
+  const palmares = namedTrophies(state)
+    .map((t) => `${t.emoji} ${t.name}${t.count > 1 ? ` ×${t.count}` : ""}`)
     .join("\n");
 
   return [

@@ -158,7 +158,10 @@ function OptionButton({
 }) {
   const club = "clubId" in option && option.clubId ? getClub(option.clubId) : null;
   const league = club ? leagueOf(club.id) : null;
-  const label = text ? fillPlaceholders(text.label, values) : clubLabel(option, club?.name ?? "");
+  // Si la opción lleva a otro club (fichar, salir hacia…), el {team} de su
+  // texto es ese destino, no el club actual del jugador.
+  const labelValues = club ? { ...values, team: club.short, rival: club.short } : values;
+  const label = text ? fillPlaceholders(text.label, labelValues) : clubLabel(option, club?.name ?? "");
   // Las ofertas de fichaje traen la duración del contrato que ofrecen.
   const contract =
     "contractSeasons" in option && option.contractSeasons
