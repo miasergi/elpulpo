@@ -258,6 +258,8 @@ const body = leagues
         `abbr: ${JSON.stringify(c.abbr)}, crest: ${JSON.stringify(c.crest)}, rep: [${c.rep.join(", ")}] },`
       )
       .join("\n");
+    // El logo de la competición sale del mismo CDN que los escudos.
+    const logo = `https://media.api-sports.io/football/leagues/${l.api}.png`;
     return `  {
     id: ${JSON.stringify(l.id)},
     name: ${JSON.stringify(l.name)},
@@ -265,6 +267,7 @@ const body = leagues
     confederation: ${JSON.stringify(l.conf)},
     tier: ${l.tier},
     cup: ${JSON.stringify(l.cup)},
+    logo: ${JSON.stringify(logo)},
     clubs: [
 ${clubs}
     ],

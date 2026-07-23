@@ -14,6 +14,7 @@ import {
 } from "@/lib/games/career/text";
 import type { SeasonSnapshot } from "@/lib/games/career/types";
 import { ClubCrest } from "./club-crest";
+import { LeagueBadge } from "./league-badge";
 import { LeagueTablePanel } from "./league-table-panel";
 import { NationalPanel } from "./national-panel";
 import { BallonDorPanel } from "./ballon-dor-panel";
@@ -57,10 +58,13 @@ export function SeasonReveal({
             {season.onLoan && <span className="rounded bg-surface-3 px-1 text-[9px] font-bold">CEDIDO</span>}
           </p>
           <p className="truncate text-sm font-extrabold">{club?.name ?? "Sin club"}</p>
-          <p className="truncate text-[11px] text-muted">
-            {league?.name}
-            {season.leaguePosition > 0 && ` · ${formatPosition(season.leaguePosition)}`}
-            {` · ${ROLE_NAME[season.role]}`}
+          <p className="flex items-center gap-1 truncate text-[11px] text-muted">
+            <LeagueBadge league={league} size={13} />
+            <span className="truncate">
+              {league?.name}
+              {season.leaguePosition > 0 && ` · ${formatPosition(season.leaguePosition)}`}
+              {` · ${ROLE_NAME[season.role]}`}
+            </span>
           </p>
         </div>
         <div className="shrink-0 text-right">

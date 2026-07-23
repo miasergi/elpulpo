@@ -3,7 +3,8 @@
 import { ArrowRight, Check, DoorOpen, LogOut, Minus, Play, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getClub, getCountry, leagueOf } from "@/lib/games/career/data";
+import { getClub, getCountry, leagueOf, tierOf } from "@/lib/games/career/data";
+import { currentLeague } from "@/lib/games/career/league-table";
 import {
   CONTINUE_LABEL,
   DECISION_TEXT,
@@ -19,6 +20,7 @@ import { INJURIES } from "@/lib/games/career/constants";
 import { tournamentName } from "@/lib/games/career/national";
 import type { CareerState, DecisionOption } from "@/lib/games/career/types";
 import { ClubCrest } from "./club-crest";
+import { LeagueBadge } from "./league-badge";
 
 /**
  * La pantalla donde el jugador decide. Enseña siempre las consecuencias y su
@@ -69,6 +71,7 @@ export function DecisionCard({
             option={option}
             text={optionTextFor(option, text)}
             values={values}
+            overrides={state.clubTierOverrides}
             disabled={busy}
             onClick={() => onChoose(option.id)}
           />
@@ -93,9 +96,40 @@ function ContinueScreen({
   const forceExit = event.options.find((o) => o.type === "force_exit");
   const retire = event.options.find((o) => o.type === "retire");
   const club = state.clubId ? getClub(state.clubId) : null;
+  const league = club ? currentLeague(club.id, tierOf(club.id, state.clubTierOverrides)) ?? leagueOf(club.id) : null;
 
   return (
     <div className="space-y-3">
+      {/* Un recordatorio de dónde estás antes de darle a jugar. */}
+      {club && (
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface/60 p-3.5">
+          <ClubCrest club={club} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">{club.name}</p>
+            <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+              <LeagueBadge league={league} size={13} />
+              <span className="truncate">{league?.name}</span>
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold",
+              state.loan
+                ? "bg-pulpo-500/20 text-pulpo-200"
+                : state.contractSeasonsLeft > 0
+                ? "bg-surface-3 text-muted"
+                : "bg-warning/20 text-warning"
+            )}
+          >
+            {state.loan
+              ? "Cedido"
+              : state.contractSeasonsLeft > 0
+              ? `Contrato · ${state.contractSeasonsLeft} ${state.contractSeasonsLeft === 1 ? "temp." : "temps."}`
+              : "Sin contrato"}
+          </span>
+        </div>
+      )}
+
       {play && (
         <Button
           size="full"
@@ -147,17 +181,22 @@ function OptionButton({
   option,
   text,
   values,
+  overrides,
   disabled,
   onClick,
 }: {
   option: DecisionOption;
   text: OptionText | null;
   values: Record<string, string | undefined>;
+  /** Ascensos y descensos de la carrera, para mostrar la división actual. */
+  overrides: Record<string, 1 | 2>;
   disabled?: boolean;
   onClick: () => void;
 }) {
   const club = "clubId" in option && option.clubId ? getClub(option.clubId) : null;
-  const league = club ? leagueOf(club.id) : null;
+  // La división en la que juega el club AHORA en tu carrera (con sus ascensos
+  // y descensos), no la de por defecto del dataset.
+  const league = club ? currentLeague(club.id, tierOf(club.id, overrides)) ?? leagueOf(club.id) : null;
   // Si la opción lleva a otro club (fichar, salir hacia…), el {team} de su
   // texto es ese destino, no el club actual del jugador.
   const labelValues = club ? { ...values, team: club.short, rival: club.short } : values;
@@ -189,10 +228,13 @@ function OptionButton({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold">{label}</span>
           {league && (
-            <span className="block truncate text-[11px] text-muted-foreground">
-              {league.name}
-              {league.tier === 2 && " · 2.ª división"}
-              {contract && ` · ${contract}`}
+            <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+              <LeagueBadge league={league} size={14} />
+              <span className="truncate">
+                {league.name}
+                {league.tier === 2 && " · 2.ª división"}
+                {contract && ` · ${contract}`}
+              </span>
             </span>
           )}
         </span>

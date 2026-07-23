@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { careerAchievements, careerVerdict, verdictEmoji } from "@/lib/games/career/achievements";
 import { clubHistory, peakMarketValue, peakOverall, trophyCount } from "@/lib/games/career/engine";
-import { getClub, getCountry } from "@/lib/games/career/data";
+import { getClub, getCountry, getLeague } from "@/lib/games/career/data";
 import { flagUrl } from "@/lib/games/career/countries.data";
 import { AWARD_EMOJI, AWARD_NAME, formatValue, trophyLabel } from "@/lib/games/career/text";
 import { POSITION_NAME } from "@/lib/games/career/constants";
 import type { Award, CareerState, Trophy } from "@/lib/games/career/types";
+import type { CareerAchievement } from "@/lib/games/career/achievements";
 import { ClubCrest } from "./club-crest";
+import { LeagueBadge } from "./league-badge";
 import { OverallChart } from "./overall-chart";
 import { SeasonReveal } from "./season-reveal";
 
@@ -61,15 +63,22 @@ export function CareerSummary({
       <div className="grid grid-cols-3 gap-2">
         <BigStat label="Partidos" value={state.totals.appearances} />
         {state.identity.position === "POR" ? (
-          <BigStat label="A cero" value={state.totals.cleanSheets} />
+          <>
+            <BigStat label="A cero" value={state.totals.cleanSheets} />
+            <BigStat label="Encajados" value={state.totals.goalsConceded} />
+          </>
         ) : (
-          <BigStat label="Goles" value={state.totals.goals} />
+          <>
+            <BigStat label="Goles" value={state.totals.goals} />
+            <BigStat label="Asistencias" value={state.totals.assists} />
+          </>
         )}
         <BigStat label="Media máx." value={peak} />
         <BigStat label="Títulos" value={state.totals.trophies} />
         <BigStat label="Premios" value={state.totals.awards} />
-        <BigStat label="Valor máx." value={formatValue(value)} small />
       </div>
+      <BigStat label="Valor máximo" value={formatValue(value)} wide />
+
 
       <section className="rounded-2xl border border-border bg-surface/60 p-4">
         <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Vitrina</h3>
@@ -109,16 +118,36 @@ export function CareerSummary({
 
       <section className="rounded-2xl border border-border bg-surface/60 p-4">
         <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Trayectoria</h3>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {clubs.map((spell, i) => {
             const club = getClub(spell.clubId);
+            const league = getLeague(spell.leagueId);
+            const isKeeper = state.identity.position === "POR";
             return (
               <div key={`${spell.clubId}-${i}`} className="flex items-center gap-3">
-                <ClubCrest club={club} size={30} />
+                <ClubCrest club={club} size={34} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{club?.name ?? spell.clubId}</span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {spell.from}–{spell.to} años · {spell.seasons} {spell.seasons === 1 ? "temporada" : "temporadas"}
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-semibold">{club?.name ?? spell.clubId}</span>
+                    {spell.onLoan && (
+                      <span className="shrink-0 rounded bg-pulpo-500/20 px-1.5 text-[9px] font-bold text-pulpo-200">
+                        CEDIDO
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <LeagueBadge league={league} size={12} />
+                    <span className="truncate">
+                      {league?.name} · {spell.from}–{spell.to} años
+                    </span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-right text-[11px] text-muted">
+                  <span className="block font-bold tabular-nums text-foreground">{spell.appearances} PJ</span>
+                  <span className="block tabular-nums">
+                    {isKeeper
+                      ? `${spell.cleanSheets} a cero`
+                      : `${spell.goals} G · ${spell.assists} A`}
                   </span>
                 </span>
               </div>
@@ -127,29 +156,8 @@ export function CareerSummary({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-surface/60 p-4">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Logros · {unlocked.length}/{achievements.length}
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {achievements.map((a) => (
-            <div
-              key={a.id}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border p-2",
-                a.unlocked ? "border-pulpo-500/30 bg-pulpo-500/10" : "border-border/60 bg-surface-2/40 opacity-45"
-              )}
-              title={a.desc}
-            >
-              <span className="text-lg">{a.emoji}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-bold">{a.title}</span>
-                <span className="block truncate text-[10px] text-muted-foreground">{a.desc}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <AchievementsSection achievements={achievements} unlocked={unlocked.length} />
+
 
       <details className="rounded-2xl border border-border bg-surface/60 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-pulpo-200">
@@ -177,10 +185,69 @@ export function CareerSummary({
   );
 }
 
-function BigStat({ label, value, small }: { label: string; value: string | number; small?: boolean }) {
+/** Cuadrícula de logros: cada uno se puede tocar para ver qué es. */
+function AchievementsSection({ achievements, unlocked }: { achievements: CareerAchievement[]; unlocked: number }) {
+  const [open, setOpen] = useState<CareerAchievement | null>(null);
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface/60 p-4">
+      <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Logros · {unlocked}/{achievements.length}
+      </h3>
+      <p className="mb-3 text-[11px] text-muted-foreground">Toca un logro para ver qué es.</p>
+      <div className="grid grid-cols-4 gap-2">
+        {achievements.map((a) => (
+          <button
+            key={a.id}
+            onClick={() => setOpen((cur) => (cur?.id === a.id ? null : a))}
+            className={cn(
+              "flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border p-1 transition-all active:scale-95",
+              a.unlocked ? "border-pulpo-500/30 bg-pulpo-500/10" : "border-border/60 bg-surface-2/40",
+              open?.id === a.id && "ring-2 ring-pulpo-400",
+              !a.unlocked && open?.id !== a.id && "opacity-45"
+            )}
+          >
+            <span className="text-2xl">{a.emoji}</span>
+            <span className="w-full truncate px-0.5 text-center text-[9px] font-semibold leading-tight">{a.title}</span>
+          </button>
+        ))}
+      </div>
+
+      {open && (
+        <div className="mt-3 flex items-start gap-3 rounded-xl border border-pulpo-500/30 bg-pulpo-500/10 p-3">
+          <span className="text-2xl">{open.emoji}</span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2 text-sm font-bold">
+              {open.title}
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[9px] font-bold",
+                  open.unlocked ? "bg-pitch-500/20 text-pitch-400" : "bg-surface-3 text-muted-foreground"
+                )}
+              >
+                {open.unlocked ? "Conseguido" : "Pendiente"}
+              </span>
+            </span>
+            <span className="mt-0.5 block text-xs text-muted">{open.desc}</span>
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BigStat({ label, value, wide }: { label: string; value: string | number; wide?: boolean }) {
+  if (wide) {
+    return (
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface/60 px-4 py-2.5">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+        <span className="text-base font-black tabular-nums">{value}</span>
+      </div>
+    );
+  }
   return (
     <div className="rounded-xl border border-border bg-surface/60 px-2 py-3 text-center">
-      <p className={cn("font-black tabular-nums", small ? "text-sm" : "text-xl")}>{value}</p>
+      <p className="text-xl font-black tabular-nums">{value}</p>
       <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );

@@ -862,15 +862,49 @@ export function trophyCount(state: CareerState): Record<Trophy, number> {
 }
 
 /** Clubes por los que pasaste, en orden, con las temporadas en cada uno. */
-export function clubHistory(state: CareerState): { clubId: string; from: number; to: number; seasons: number }[] {
-  const out: { clubId: string; from: number; to: number; seasons: number }[] = [];
+export interface ClubSpell {
+  clubId: string;
+  leagueId: string;
+  from: number;
+  to: number;
+  seasons: number;
+  appearances: number;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  /** Toda la etapa fue una cesión (frente a jugar en propiedad). */
+  onLoan: boolean;
+}
+
+/**
+ * Los clubes por los que pasaste, en orden, con lo que hiciste en cada etapa.
+ * Se corta la etapa al cambiar de club o al pasar de cesión a propiedad, para
+ * poder distinguir "cedido" de "en propiedad" en el resumen.
+ */
+export function clubHistory(state: CareerState): ClubSpell[] {
+  const out: ClubSpell[] = [];
   for (const s of state.seasons) {
     const last = out[out.length - 1];
-    if (last && last.clubId === s.clubId) {
+    if (last && last.clubId === s.clubId && last.onLoan === s.onLoan) {
       last.to = s.age;
       last.seasons += 1;
+      last.appearances += s.stats.appearances;
+      last.goals += s.stats.goals;
+      last.assists += s.stats.assists;
+      last.cleanSheets += s.stats.cleanSheets;
     } else {
-      out.push({ clubId: s.clubId, from: s.age, to: s.age, seasons: 1 });
+      out.push({
+        clubId: s.clubId,
+        leagueId: s.leagueId,
+        from: s.age,
+        to: s.age,
+        seasons: 1,
+        appearances: s.stats.appearances,
+        goals: s.stats.goals,
+        assists: s.stats.assists,
+        cleanSheets: s.stats.cleanSheets,
+        onLoan: s.onLoan,
+      });
     }
   }
   return out;

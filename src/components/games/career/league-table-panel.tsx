@@ -5,6 +5,7 @@ import { getLeague } from "@/lib/games/career/data";
 import { relegationSlots } from "@/lib/games/career/league-table";
 import type { LeagueRow } from "@/lib/games/career/types";
 import { ClubCrest } from "./club-crest";
+import { LeagueBadge } from "./league-badge";
 
 /**
  * Clasificación completa de la liga con tu club resaltado. Sigue el mismo
@@ -29,7 +30,10 @@ export function LeagueTablePanel({
     <div className="overflow-hidden rounded-xl border border-border">
       <div className="grid grid-cols-[1.6rem_1fr_1.9rem_1.9rem_2.2rem] gap-1 bg-surface-2 px-3 py-1.5 text-[10px] font-bold uppercase text-muted-foreground">
         <span>#</span>
-        <span>{league?.name ?? "Clasificación"}</span>
+        <span className="flex items-center gap-1">
+          <LeagueBadge league={league} size={14} />
+          <span className="truncate">{league?.name ?? "Clasificación"}</span>
+        </span>
         <span className="text-center">PJ</span>
         <span className="text-center">DG</span>
         <span className="text-center">Pts</span>

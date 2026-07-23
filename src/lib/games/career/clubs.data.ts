@@ -17,6 +17,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "FA Cup",
+    logo: "https://media.api-sports.io/football/leagues/39.png",
     clubs: [
     { id: "manchester-united", name: "Manchester United", short: "Manchester United", abbr: "MUN", crest: "https://media.api-sports.io/football/teams/33.png", rep: [3, 3, 5] },
     { id: "newcastle-united", name: "Newcastle United", short: "Newcastle United", abbr: "NEW", crest: "https://media.api-sports.io/football/teams/34.png", rep: [1, 1, 4] },
@@ -47,6 +48,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 2,
     cup: "FA Cup",
+    logo: "https://media.api-sports.io/football/leagues/40.png",
     clubs: [
     { id: "huddersfield-town", name: "Huddersfield Town", short: "Huddersfield Town", abbr: "HUD", crest: "https://media.api-sports.io/football/teams/37.png", rep: [0, 0, 1] },
     { id: "watford", name: "Watford", short: "Watford", abbr: "WAT", crest: "https://media.api-sports.io/football/teams/38.png", rep: [0, 0, 2] },
@@ -81,6 +83,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "Copa del Rey",
+    logo: "https://media.api-sports.io/football/leagues/140.png",
     clubs: [
     { id: "fc-barcelona", name: "FC Barcelona", short: "Barcelona", abbr: "BAR", crest: "https://media.api-sports.io/football/teams/529.png", rep: [4, 4, 5] },
     { id: "atletico-de-madrid", name: "Atlético de Madrid", short: "Atlético de Madrid", abbr: "ATM", crest: "https://media.api-sports.io/football/teams/530.png", rep: [2, 2, 4] },
@@ -111,6 +114,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 2,
     cup: "Copa del Rey",
+    logo: "https://media.api-sports.io/football/leagues/141.png",
     clubs: [
     { id: "cd-leganes", name: "CD Leganés", short: "Leganés", abbr: "LEG", crest: "https://media.api-sports.io/football/teams/537.png", rep: [0, 0, 0] },
     { id: "levante-ud", name: "Levante UD", short: "Levante", abbr: "LEV", crest: "https://media.api-sports.io/football/teams/539.png", rep: [0, 0, 2] },
@@ -143,6 +147,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "Copa Italia",
+    logo: "https://media.api-sports.io/football/leagues/135.png",
     clubs: [
     { id: "ss-lazio", name: "SS Lazio", short: "Lazio", abbr: "LAZ", crest: "https://media.api-sports.io/football/teams/487.png", rep: [1, 0, 3] },
     { id: "sassuolo", name: "Sassuolo", short: "Sassuolo", abbr: "SAS", crest: "https://media.api-sports.io/football/teams/488.png", rep: [0, 0, 3] },
@@ -173,6 +178,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 2,
     cup: "Copa Italia",
+    logo: "https://media.api-sports.io/football/leagues/136.png",
     clubs: [
     { id: "sampdoria", name: "Sampdoria", short: "Sampdoria", abbr: "SAM", crest: "https://media.api-sports.io/football/teams/498.png", rep: [0, 0, 0] },
     { id: "ascoli", name: "Ascoli", short: "Ascoli", abbr: "ASC", crest: "https://media.api-sports.io/football/teams/507.png", rep: [0, 0, 0] },
@@ -203,6 +209,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "DFB-Pokal",
+    logo: "https://media.api-sports.io/football/leagues/78.png",
     clubs: [
     { id: "bayern-de-munich", name: "Bayern de Múnich", short: "Bayern de Múnich", abbr: "BAY", crest: "https://media.api-sports.io/football/teams/157.png", rep: [5, 4, 5] },
     { id: "fortuna-dusseldorf", name: "Fortuna Düsseldorf", short: "Fortuna Düsseldorf", abbr: "DUS", crest: "https://media.api-sports.io/football/teams/158.png", rep: [2, 2, 4] },
@@ -232,6 +239,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 2,
     cup: "DFB-Pokal",
+    logo: "https://media.api-sports.io/football/leagues/79.png",
     clubs: [
     { id: "hertha-bsc", name: "Hertha BSC", short: "Hertha BSC", abbr: "HER", crest: "https://media.api-sports.io/football/teams/159.png", rep: [0, 0, 1] },
     { id: "hannover-96", name: "Hannover 96", short: "Hannover 96", abbr: "HAN", crest: "https://media.api-sports.io/football/teams/166.png", rep: [0, 0, 1] },
@@ -260,6 +268,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "Copa de Francia",
+    logo: "https://media.api-sports.io/football/leagues/61.png",
     clubs: [
     { id: "losc-lille", name: "LOSC Lille", short: "Lille", abbr: "LIL", crest: "https://media.api-sports.io/football/teams/79.png", rep: [1, 0, 3] },
     { id: "olympique-de-lyon", name: "Olympique de Lyon", short: "Olympique de Lyon", abbr: "LYO", crest: "https://media.api-sports.io/football/teams/80.png", rep: [2, 1, 4] },
@@ -289,6 +298,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 2,
     cup: "Copa de Francia",
+    logo: "https://media.api-sports.io/football/leagues/62.png",
     clubs: [
     { id: "angers-sco", name: "Angers SCO", short: "Angers SCO", abbr: "ANG", crest: "https://media.api-sports.io/football/teams/77.png", rep: [0, 0, 2] },
     { id: "girondins-de-burdeos", name: "Girondins de Burdeos", short: "Girondins de Burd…", abbr: "BOR", crest: "https://media.api-sports.io/football/teams/78.png", rep: [0, 0, 2] },
@@ -318,6 +328,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "Copa de los Países Bajos",
+    logo: "https://media.api-sports.io/football/leagues/88.png",
     clubs: [
     { id: "pec-zwolle", name: "PEC Zwolle", short: "PEC Zwolle", abbr: "ZWO", crest: "https://media.api-sports.io/football/teams/193.png", rep: [0, 0, 0] },
     { id: "ajax", name: "Ajax", short: "Ajax", abbr: "AJA", crest: "https://media.api-sports.io/football/teams/194.png", rep: [3, 2, 3] },
@@ -352,6 +363,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "UEFA",
     tier: 1,
     cup: "Copa de Portugal",
+    logo: "https://media.api-sports.io/football/leagues/94.png",
     clubs: [
     { id: "sl-benfica", name: "SL Benfica", short: "Benfica", abbr: "BEN", crest: "https://media.api-sports.io/football/teams/211.png", rep: [3, 2, 3] },
     { id: "fc-porto", name: "FC Porto", short: "Porto", abbr: "POR", crest: "https://media.api-sports.io/football/teams/212.png", rep: [3, 2, 3] },
@@ -381,6 +393,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONCACAF",
     tier: 1,
     cup: "Copa MX",
+    logo: "https://media.api-sports.io/football/leagues/262.png",
     clubs: [
     { id: "chivas-de-guadalajara", name: "Chivas de Guadalajara", short: "Chivas de Guadala…", abbr: "GUA", crest: "https://media.api-sports.io/football/teams/2278.png", rep: [3, 3, 3] },
     { id: "tigres-uanl", name: "Tigres UANL", short: "Tigres UANL", abbr: "UAN", crest: "https://media.api-sports.io/football/teams/2279.png", rep: [3, 3, 3] },
@@ -409,6 +422,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa de Brasil",
+    logo: "https://media.api-sports.io/football/leagues/71.png",
     clubs: [
     { id: "ec-bahia", name: "EC Bahia", short: "Bahia", abbr: "BAH", crest: "https://media.api-sports.io/football/teams/118.png", rep: [1, 1, 2] },
     { id: "internacional", name: "Internacional", short: "Internacional", abbr: "INT", crest: "https://media.api-sports.io/football/teams/119.png", rep: [2, 2, 2] },
@@ -439,6 +453,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Argentina",
+    logo: "https://media.api-sports.io/football/leagues/128.png",
     clubs: [
     { id: "gimnasia-la-plata", name: "Gimnasia La Plata", short: "Gimnasia La Plata", abbr: "GIM", crest: "https://media.api-sports.io/football/teams/434.png", rep: [0, 0, 0] },
     { id: "river-plate", name: "River Plate", short: "River Plate", abbr: "RIV", crest: "https://media.api-sports.io/football/teams/435.png", rep: [3, 3, 3] },
@@ -477,6 +492,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 2,
     cup: "Copa Argentina",
+    logo: "https://media.api-sports.io/football/leagues/129.png",
     clubs: [
     { id: "patronato", name: "Patronato", short: "Patronato", abbr: "PAT", crest: "https://media.api-sports.io/football/teams/444.png", rep: [0, 0, 0] },
     { id: "chacarita-juniors", name: "Chacarita Juniors", short: "Chacarita Juniors", abbr: "CHA", crest: "https://media.api-sports.io/football/teams/447.png", rep: [0, 0, 0] },
@@ -524,6 +540,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Chile",
+    logo: "https://media.api-sports.io/football/leagues/265.png",
     clubs: [
     { id: "colo-colo", name: "Colo Colo", short: "Colo Colo", abbr: "COL", crest: "https://media.api-sports.io/football/teams/2315.png", rep: [2, 1, 0] },
     { id: "curico-unido", name: "Curicó Unido", short: "Curicó Unido", abbr: "CUR", crest: "https://media.api-sports.io/football/teams/2316.png", rep: [1, 0, 0] },
@@ -550,6 +567,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Colombia",
+    logo: "https://media.api-sports.io/football/leagues/239.png",
     clubs: [
     { id: "millonarios", name: "Millonarios", short: "Millonarios", abbr: "MIL", crest: "https://media.api-sports.io/football/teams/1125.png", rep: [2, 0, 0] },
     { id: "deportivo-pasto", name: "Deportivo Pasto", short: "Deportivo Pasto", abbr: "PAS", crest: "https://media.api-sports.io/football/teams/1126.png", rep: [1, 0, 0] },
@@ -580,6 +598,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Uruguay",
+    logo: "https://media.api-sports.io/football/leagues/268.png",
     clubs: [
     { id: "penarol", name: "Peñarol", short: "Peñarol", abbr: "PEN", crest: "https://media.api-sports.io/football/teams/2348.png", rep: [4, 1, 1] },
     { id: "defensor-sporting", name: "Defensor Sporting", short: "Defensor Sporting", abbr: "DEF", crest: "https://media.api-sports.io/football/teams/2350.png", rep: [1, 0, 0] },
@@ -606,6 +625,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Paraguay",
+    logo: "https://media.api-sports.io/football/leagues/250.png",
     clubs: [
     { id: "guarani", name: "Guaraní", short: "Guaraní", abbr: "GUA", crest: "https://media.api-sports.io/football/teams/1174.png", rep: [2, 0, 0] },
     { id: "nacional-de-asuncion", name: "Nacional de Asunción", short: "Nacional de Asunc…", abbr: "NAC", crest: "https://media.api-sports.io/football/teams/1175.png", rep: [1, 0, 0] },
@@ -628,6 +648,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Perú",
+    logo: "https://media.api-sports.io/football/leagues/281.png",
     clubs: [
     { id: "utc-cajamarca", name: "UTC Cajamarca", short: "UTC Cajamarca", abbr: "CAJ", crest: "https://media.api-sports.io/football/teams/2539.png", rep: [1, 0, 0] },
     { id: "universitario", name: "Universitario", short: "Universitario", abbr: "UNI", crest: "https://media.api-sports.io/football/teams/2540.png", rep: [3, 0, 1] },
@@ -657,6 +678,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Ecuador",
+    logo: "https://media.api-sports.io/football/leagues/242.png",
     clubs: [
     { id: "emelec", name: "Emelec", short: "Emelec", abbr: "EME", crest: "https://media.api-sports.io/football/teams/1148.png", rep: [3, 1, 1] },
     { id: "delfin-sc", name: "Delfín SC", short: "Delfín", abbr: "DS", crest: "https://media.api-sports.io/football/teams/1149.png", rep: [1, 0, 0] },
@@ -683,6 +705,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Bolivia",
+    logo: "https://media.api-sports.io/football/leagues/344.png",
     clubs: [
     { id: "aurora", name: "Aurora", short: "Aurora", abbr: "AUR", crest: "https://media.api-sports.io/football/teams/3637.png", rep: [1, 0, 0] },
     { id: "always-ready", name: "Always Ready", short: "Always Ready", abbr: "AR", crest: "https://media.api-sports.io/football/teams/3700.png", rep: [2, 0, 0] },
@@ -711,6 +734,7 @@ export const LEAGUES: CareerLeague[] = [
     confederation: "CONMEBOL",
     tier: 1,
     cup: "Copa Venezuela",
+    logo: "https://media.api-sports.io/football/leagues/299.png",
     clubs: [
     { id: "zamora-fc", name: "Zamora FC", short: "Zamora", abbr: "ZAM", crest: "https://media.api-sports.io/football/teams/2806.png", rep: [1, 0, 0] },
     { id: "deportivo-tachira", name: "Deportivo Táchira", short: "Deportivo Táchira", abbr: "TAC", crest: "https://media.api-sports.io/football/teams/2807.png", rep: [2, 0, 0] },

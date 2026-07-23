@@ -49,6 +49,8 @@ export interface CareerLeague {
   /** 1 = primera división, 2 = segunda. */
   tier: 1 | 2;
   cup: string;
+  /** Logo de la competición (mismo CDN que los escudos). */
+  logo: string | null;
   clubs: CareerClub[];
 }
 

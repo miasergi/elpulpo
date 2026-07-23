@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { Confetti } from "@/components/games/confetti";
 import { haptic, playTick } from "@/lib/sound";
 import { createCareer, decide, replay } from "@/lib/games/career/engine";
@@ -172,7 +173,16 @@ export function CareerGame({ saved }: { saved: SavedCareer | null }) {
         </section>
       )}
 
-      {state.currentEvent && <DecisionCard state={state} onChoose={choose} busy={busy} />}
+      {state.currentEvent && (
+        <div className="space-y-2">
+          {state.currentEvent.kind !== "continue" && (
+            <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-pulpo-300">
+              <Sparkles className="h-3.5 w-3.5" /> Te toca decidir
+            </h2>
+          )}
+          <DecisionCard state={state} onChoose={choose} busy={busy} />
+        </div>
+      )}
 
       {oldSeasons.length > 0 && (
         <details className="rounded-2xl border border-border bg-surface/50 p-4">
