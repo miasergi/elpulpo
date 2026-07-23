@@ -1,10 +1,14 @@
 "use client";
 
-import { ArrowRight, Check, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, Check, DoorOpen, LogOut, Minus, Play, TrendingDown, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getClub, getCountry, leagueOf } from "@/lib/games/career/data";
 import {
+  CONTINUE_LABEL,
   DECISION_TEXT,
+  FORCE_EXIT_HINT,
+  FORCE_EXIT_LABEL,
   OPTION_LABEL,
   TROPHY_NAME,
   eventText,
@@ -32,6 +36,12 @@ export function DecisionCard({
 }) {
   const event = state.currentEvent;
   if (!event) return null;
+
+  // "Sigue una temporada más" tiene su propia pantalla: un botón grande para
+  // jugar y, debajo, pedir salir o retirarte.
+  if (event.kind === "continue") {
+    return <ContinueScreen state={state} onChoose={onChoose} busy={busy} />;
+  }
 
   const isCareerEvent = event.kind === "career_event" && !!event.eventKey;
   const text = isCareerEvent ? eventText(event.eventKey!, event.variantKey) : null;
@@ -68,6 +78,66 @@ export function DecisionCard({
   );
 }
 
+/** La pantalla de "juega la temporada", con salir/retirarte como secundarios. */
+function ContinueScreen({
+  state,
+  onChoose,
+  busy,
+}: {
+  state: CareerState;
+  onChoose: (optionId: string) => void;
+  busy?: boolean;
+}) {
+  const event = state.currentEvent!;
+  const play = event.options.find((o) => o.type === "continue");
+  const forceExit = event.options.find((o) => o.type === "force_exit");
+  const retire = event.options.find((o) => o.type === "retire");
+  const club = state.clubId ? getClub(state.clubId) : null;
+
+  return (
+    <div className="space-y-3">
+      {play && (
+        <Button
+          size="full"
+          variant="primary"
+          disabled={busy}
+          onClick={() => onChoose(play.id)}
+          className="h-14 text-base shadow-xl"
+        >
+          <Play className="h-5 w-5" /> {CONTINUE_LABEL}
+          {club && <span className="font-normal opacity-80">· {club.short}</span>}
+        </Button>
+      )}
+
+      {forceExit && (
+        <button
+          onClick={() => onChoose(forceExit.id)}
+          disabled={busy}
+          className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface/60 p-3.5 text-left transition-all hover:border-warning/50 hover:bg-surface-2/70 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+            <DoorOpen className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">{FORCE_EXIT_LABEL}</span>
+            <span className="block text-[11px] text-muted-foreground">{FORCE_EXIT_HINT}</span>
+          </span>
+        </button>
+      )}
+
+      {retire && (
+        <button
+          onClick={() => onChoose(retire.id)}
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-transparent p-3 text-sm font-semibold text-muted transition-colors hover:text-danger disabled:pointer-events-none disabled:opacity-50"
+        >
+          <LogOut className="h-4 w-4" /> {OPTION_LABEL.retire}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function optionTextFor(option: DecisionOption, text: ReturnType<typeof eventText> | null): OptionText | null {
   if (!text || option.type !== "career_choice") return null;
   return text.options[option.optionKey] ?? null;
@@ -89,6 +159,11 @@ function OptionButton({
   const club = "clubId" in option && option.clubId ? getClub(option.clubId) : null;
   const league = club ? leagueOf(club.id) : null;
   const label = text ? fillPlaceholders(text.label, values) : clubLabel(option, club?.name ?? "");
+  // Las ofertas de fichaje traen la duración del contrato que ofrecen.
+  const contract =
+    "contractSeasons" in option && option.contractSeasons
+      ? `${option.contractSeasons} ${option.contractSeasons === 1 ? "temporada" : "temporadas"}`
+      : null;
 
   return (
     <button
@@ -114,6 +189,7 @@ function OptionButton({
             <span className="block truncate text-[11px] text-muted-foreground">
               {league.name}
               {league.tier === 2 && " · 2.ª división"}
+              {contract && ` · ${contract}`}
             </span>
           )}
         </span>
@@ -189,7 +265,7 @@ function clubLabel(option: DecisionOption, teamName: string): string {
 }
 
 /** Los datos con los que se rellenan los huecos de los textos. */
-function placeholderValues(state: CareerState): Record<string, string | undefined> {
+export function placeholderValues(state: CareerState): Record<string, string | undefined> {
   const event = state.currentEvent;
   const club = state.clubId ? getClub(state.clubId) : null;
   const league = state.clubId ? leagueOf(state.clubId) : null;

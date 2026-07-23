@@ -180,13 +180,25 @@ export type EventKey =
 export type DecisionKind =
   | "academy_offer" | "transfer" | "loan_offer"
   | "post_loan_retained" | "post_loan_not_retained"
-  | "contract_non_renewal" | "career_event";
+  | "contract_non_renewal" | "career_event"
+  | "continue" | "forced_exit";
 
 /** Una opción concreta que el jugador puede pulsar. */
 export type DecisionOption =
-  | { id: string; type: "join_club" | "join_loan" | "permanent_transfer" | "stay"; clubId: string }
+  | { id: string; type: "join_club" | "join_loan" | "permanent_transfer" | "stay"; clubId: string; contractSeasons?: number }
   | { id: string; type: "retire" }
+  | { id: string; type: "continue" }
+  | { id: string; type: "force_exit" }
   | { id: string; type: "career_choice"; eventKey: EventKey; optionKey: string; clubId?: string };
+
+/** El resultado de la última decisión, para animar la tirada en pantalla. */
+export interface Resolution {
+  eventKey?: EventKey;
+  optionKey?: string;
+  kind: "positive" | "negative" | "neutral";
+  /** Solo en "forzar salida": si el club aceptó dejarte ir. */
+  accepted?: boolean;
+}
 
 export interface DecisionEvent {
   id: string;
@@ -240,10 +252,14 @@ export interface CareerState {
   clubId: string | null;
   /** Club dueño de tu ficha. */
   contractClubId: string | null;
+  /** Temporadas que le quedan a tu contrato; 0 = eres agente libre. */
+  contractSeasonsLeft: number;
   loan: Loan | null;
   seasons: SeasonSnapshot[];
   totals: Totals;
   currentEvent: DecisionEvent | null;
+  /** Cómo salió la última decisión con azar (para animarla en pantalla). */
+  lastResolution: Resolution | null;
   /** Eventos ya vividos, para no repetirlos. */
   completedEventKeys: EventKey[];
   injuryCount: number;

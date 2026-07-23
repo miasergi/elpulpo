@@ -81,13 +81,26 @@ export function buildLeagueTable({ rng, clubId, tier, lift, champion }: TableInp
   const clubs = participants(league, club);
   const games = Math.max(2, (clubs.length - 1) * 2);
 
-  // Fuerza de cada club con su ruido de temporada (rachas, lesiones, fichajes).
+  // Fuerza de cada club con su ruido de temporada (rachas, lesiones, fichajes)
+  // y, de vez en cuando, una sorpresa gorda: un equipo modesto que se dispara
+  // o un grande que se hunde. Es lo que hace que la liga no sea siempre igual.
   let r = rng;
   const rated = clubs.map((c) => {
     const noise = float(r, -7, 7);
     r = noise.rng;
-    const own = clubStrength(c) + (c.id === club.id ? lift : 0);
-    return { club: c, strength: own + noise.value };
+    let strength = clubStrength(c) + (c.id === club.id ? lift : 0) + noise.value;
+
+    // ~9% de los clubes viven una temporada fuera de lo normal.
+    const surprise = float(r, 0, 1);
+    r = surprise.rng;
+    if (surprise.value < 0.09) {
+      const shock = float(r, 10, 20);
+      r = shock.rng;
+      // Los flojos sorprenden hacia arriba; los grandes, hacia abajo.
+      strength += c.rep[2] <= 2 ? shock.value : -shock.value;
+    }
+
+    return { club: c, strength };
   });
 
   const mean = rated.reduce((n, x) => n + x.strength, 0) / rated.length;

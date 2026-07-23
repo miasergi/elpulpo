@@ -8,10 +8,9 @@ import {
   AWARD_EMOJI,
   AWARD_NAME,
   ROLE_NAME,
-  TROPHY_EMOJI,
-  TROPHY_NAME,
   formatPosition,
   formatValue,
+  trophyLabel,
 } from "@/lib/games/career/text";
 import type { SeasonSnapshot } from "@/lib/games/career/types";
 import { ClubCrest } from "./club-crest";
@@ -98,14 +97,17 @@ export function SeasonReveal({
 
       {(season.trophies.length > 0 || season.awards.length > 0 || season.relegated || season.promoted) && (
         <div className="flex flex-wrap gap-1.5 px-4 pt-3">
-          {season.trophies.map((t) => (
-            <span
-              key={t}
-              className="rounded-full bg-warning/20 px-2.5 py-1 text-[11px] font-bold text-warning"
-            >
-              {TROPHY_EMOJI[t]} {TROPHY_NAME[t]}
-            </span>
-          ))}
+          {season.trophies.map((t) => {
+            const label = trophyLabel(t, season.leagueId, season.national?.tournament);
+            return (
+              <span
+                key={t}
+                className="rounded-full bg-warning/20 px-2.5 py-1 text-[11px] font-bold text-warning"
+              >
+                {label.emoji} {label.name}
+              </span>
+            );
+          })}
           {season.awards.map((a) => (
             <span
               key={a}

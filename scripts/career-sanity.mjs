@@ -66,7 +66,7 @@ function playRandomCareer(seed) {
   const decisions = [];
   let guard = 0;
 
-  while (state.phase !== "summary" && guard++ < 60) {
+  while (state.phase !== "summary" && guard++ < 250) {
     const options = state.currentEvent?.options ?? [];
     if (!options.length) throw new Error(`Decisión sin opciones en el paso ${state.step}`);
     // Casi nunca se retira por gusto, para llegar hasta el final.
@@ -76,7 +76,7 @@ function playRandomCareer(seed) {
     decisions.push({ optionId: option.id });
     state = decide(state, option.id);
   }
-  check(guard < 60, `La carrera con semilla ${seed} no terminó nunca`);
+  check(guard < 250, `La carrera con semilla ${seed} no terminó nunca`);
   return { state, decisions };
 }
 

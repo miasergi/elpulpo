@@ -10,13 +10,16 @@
 // ║  y reconstruirla entera con `replay()`.                            ║
 // ╚══════════════════════════════════════════════════════════════════╝
 import {
+  CONTRACT_MAX,
+  CONTRACT_MIN,
   DECLINE_RETIREMENT_OVERALL,
   INJURIES,
+  LOAN_SEASONS,
   MAX_OVERALL,
   MIN_OVERALL,
-  PERIOD_SEASONS,
   POSITION_STYLE,
   RETIREMENT_AGE,
+  SEASONS_PER_STEP,
   START_AGE,
 } from "./constants";
 import { getClub, getCountry, leagueOf, tierOf } from "./data";
@@ -33,7 +36,7 @@ import {
   pickHomeClub,
   pickRivalClub,
 } from "./offers";
-import { chance, pick, type Rng } from "./rng";
+import { chance, int, pick, type Rng } from "./rng";
 import {
   NO_MODIFIERS,
   clamp,
@@ -53,6 +56,7 @@ import type {
   DecisionOption,
   Identity,
   Player,
+  Resolution,
   SeasonSnapshot,
   Totals,
   Trophy,
@@ -85,10 +89,12 @@ export function createCareer(seed: number, identity: Identity): CareerState {
     player,
     clubId: null,
     contractClubId: null,
+    contractSeasonsLeft: 0,
     loan: null,
     seasons: [],
     totals: { ...EMPTY_TOTALS },
     currentEvent: null,
+    lastResolution: null,
     completedEventKeys: [],
     injuryCount: 0,
     upcomingTournaments: [],
@@ -104,18 +110,44 @@ export function createCareer(seed: number, identity: Identity): CareerState {
       id: eventId(base, "academy_offer"),
       kind: "academy_offer",
       age: START_AGE,
+      // El primer contrato de cantera es de 3 temporadas.
       options: offers.clubs.map((c) => ({
         id: `academy-${c.id}`,
         type: "join_club" as const,
         clubId: c.id,
+        contractSeasons: 3,
       })),
     },
   };
 }
 
+/** Duración de contrato por defecto cuando la oferta no trae una explícita. */
+function defaultContractSeasons(age: number): number {
+  return age >= 33 ? 2 : 3;
+}
+
+/** Duración de contrato de una oferta concreta: más corta cuanto mayor eres. */
+function contractLength(rng: Rng, age: number): { rng: Rng; seasons: number } {
+  const max = age >= 33 ? CONTRACT_MIN : age >= 30 ? 3 : CONTRACT_MAX;
+  const roll = int(rng, CONTRACT_MIN, max);
+  return { rng: roll.rng, seasons: roll.value };
+}
+
+/** Contrato que arranca al elegir esta opción (null = no cambia). */
+function contractFromOption(option: DecisionOption, age: number): number | null {
+  if (option.type === "join_club" || option.type === "permanent_transfer" || option.type === "stay") {
+    return option.contractSeasons ?? defaultContractSeasons(age);
+  }
+  if (option.type === "career_choice" && option.clubId) {
+    // Fichaje disparado por un evento (rival, vuelta a casa, regreso triunfal).
+    return defaultContractSeasons(age);
+  }
+  return null;
+}
+
 // ── Decisión ─────────────────────────────────────────────────────────
 
-/** Aplica una decisión y simula el tramo de carrera que viene después. */
+/** Aplica una decisión y simula la temporada que viene después. */
 export function decide(state: CareerState, optionId: string): CareerState {
   if (state.phase === "summary") return state;
   const event = state.currentEvent;
@@ -125,7 +157,19 @@ export function decide(state: CareerState, optionId: string): CareerState {
   if (!option) throw new Error(`Opción desconocida: ${optionId}`);
 
   if (option.type === "retire") {
-    return { ...state, phase: "summary", currentEvent: null, step: state.step + 1, retirement: { age: state.player.age, reason: "voluntary" } };
+    return {
+      ...state,
+      phase: "summary",
+      currentEvent: null,
+      lastResolution: null,
+      step: state.step + 1,
+      retirement: { age: state.player.age, reason: "voluntary" },
+    };
+  }
+
+  // Forzar salida no juega temporada por sí misma: negocia y abre el mercado.
+  if (option.type === "force_exit") {
+    return resolveForceExit(state);
   }
 
   let r = rngOf(state);
@@ -134,6 +178,7 @@ export function decide(state: CareerState, optionId: string): CareerState {
   let injuryCount = state.injuryCount;
   let player = state.player;
   let countryCode = state.player.countryCode;
+  let resolution: Resolution | null = null;
 
   // ── ¿Qué hace esta opción? ──
   if (option.type === "career_choice") {
@@ -148,6 +193,7 @@ export function decide(state: CareerState, optionId: string): CareerState {
     });
     r = resolved.rng;
     mods = resolved.mods;
+    resolution = { eventKey: option.eventKey, optionKey: option.optionKey, kind: resolved.outcome };
 
     if (option.eventKey !== "injury") completed = [...completed, option.eventKey];
     else injuryCount += 1;
@@ -171,9 +217,11 @@ export function decide(state: CareerState, optionId: string): CareerState {
 
   // ── ¿Dónde juegas ahora? ──
   const movement = resolveMovement(state, option);
-  let clubId = movement.clubId;
+  const clubId = movement.clubId;
   const contractClubId = movement.contractClubId;
-  let loan = movement.loan;
+  const loan = movement.loan;
+  const signedContract = contractFromOption(option, player.age);
+  const contractSeasonsLeft = signedContract ?? state.contractSeasonsLeft;
 
   // Primer club: aquí es donde el canterano estrena media y valor.
   if (!state.clubId && clubId) {
@@ -185,29 +233,70 @@ export function decide(state: CareerState, optionId: string): CareerState {
     player = { ...player, overall: start.overall, marketValue: value.value };
   }
 
-  // Los torneos del tramo se planifican antes de jugarlo.
-  const plan = planTournaments(r, player.countryCode, player.age, PERIOD_SEASONS);
-  r = plan.rng;
-  const tournaments = plan.tournaments;
+  // ── Se juega UNA temporada ──
+  const step = playSeason(state, r, player, clubId, loan, contractSeasonsLeft, {
+    ...state.clubTierOverrides,
+  }, mods);
 
-  // ── Se juegan las temporadas ──
-  const seasons: SeasonSnapshot[] = [...state.seasons];
-  let tierOverrides = { ...state.clubTierOverrides };
+  const next: CareerState = {
+    ...state,
+    step: state.step + 1,
+    rngState: step.rng.state,
+    player: step.player,
+    clubId,
+    contractClubId,
+    contractSeasonsLeft: step.contractSeasonsLeft,
+    loan,
+    seasons: step.seasons,
+    totals: accumulate(step.seasons),
+    completedEventKeys: completed,
+    injuryCount,
+    upcomingTournaments: step.tournaments,
+    clubTierOverrides: step.tierOverrides,
+    retirement: step.retirement,
+    currentEvent: null,
+    lastResolution: resolution,
+    phase: step.retirement ? "summary" : "decision",
+  };
+
+  if (step.retirement) return next;
+  return withNextDecision(next);
+}
+
+/** Todo lo que ocurre en una temporada: torneos, partido, contrato y retiro. */
+interface SeasonStep {
+  rng: Rng;
+  seasons: SeasonSnapshot[];
+  player: Player;
+  tierOverrides: Record<string, 1 | 2>;
+  contractSeasonsLeft: number;
+  tournaments: CareerState["upcomingTournaments"];
+  retirement: CareerState["retirement"];
+}
+
+function playSeason(
+  state: CareerState,
+  rng: Rng,
+  player: Player,
+  clubId: string | null,
+  loan: CareerState["loan"],
+  contractSeasonsLeft: number,
+  tierOverrides: Record<string, 1 | 2>,
+  mods: SeasonModifiers
+): SeasonStep {
+  let r = rng;
+  const seasons = [...state.seasons];
   let retirement = state.retirement;
 
-  for (let i = 0; i < PERIOD_SEASONS; i++) {
-    if (!clubId) break;
-    const club = getClub(clubId);
-    if (!club) break;
+  // Los torneos de la temporada se planifican antes de jugarla.
+  const plan = planTournaments(r, player.countryCode, player.age, SEASONS_PER_STEP);
+  r = plan.rng;
 
-    // Al terminar la cesión vuelves a tu club, aunque queden temporadas.
-    if (loan && player.age >= loan.returnAge) {
-      clubId = loan.parentClubId;
-      loan = null;
-      continue;
-    }
+  const club = clubId ? getClub(clubId) : null;
+  const returning = loan ? player.age >= loan.returnAge : false;
 
-    const tier = tierOf(clubId, tierOverrides);
+  if (club && !returning) {
+    const tier = tierOf(clubId!, tierOverrides);
     const result = simulateSeason({
       rng: r,
       player,
@@ -216,50 +305,29 @@ export function decide(state: CareerState, optionId: string): CareerState {
       index: seasons.length + 1,
       onLoan: !!loan,
       displayName: displayName(state.identity),
-      tournaments,
+      tournaments: plan.tournaments,
       mods,
     });
     r = result.rng;
     seasons.push(result.snapshot);
     player = result.player;
-    if (result.nextTier) tierOverrides = { ...tierOverrides, [clubId]: result.nextTier };
+    if (result.nextTier) tierOverrides = { ...tierOverrides, [clubId!]: result.nextTier };
 
-    if (player.age >= RETIREMENT_AGE) {
-      retirement = { age: player.age, reason: "age" };
-      break;
-    }
-    if (player.age >= 26 && player.overall < DECLINE_RETIREMENT_OVERALL) {
+    // El contrato solo corre cuando juegas en tu club (no durante la cesión).
+    if (!loan && contractSeasonsLeft > 0) contractSeasonsLeft -= 1;
+
+    if (player.age >= RETIREMENT_AGE) retirement = { age: player.age, reason: "age" };
+    else if (player.age >= 26 && player.overall < DECLINE_RETIREMENT_OVERALL) {
       retirement = { age: player.age, reason: "decline" };
-      break;
     }
   }
 
-  // Lo diferido llega al final del tramo ("recuperas los 2 de media").
+  // Lo diferido de un evento llega al final de la temporada.
   if (mods.deferredOverallDelta) {
     player = { ...player, overall: clamp(player.overall + mods.deferredOverallDelta, MIN_OVERALL, MAX_OVERALL) };
   }
 
-  const next: CareerState = {
-    ...state,
-    step: state.step + 1,
-    rngState: r.state,
-    player,
-    clubId,
-    contractClubId,
-    loan,
-    seasons,
-    totals: accumulate(seasons),
-    completedEventKeys: completed,
-    injuryCount,
-    upcomingTournaments: tournaments,
-    clubTierOverrides: tierOverrides,
-    retirement,
-    currentEvent: null,
-    phase: retirement ? "summary" : "decision",
-  };
-
-  if (retirement) return next;
-  return withNextDecision(next);
+  return { rng: r, seasons, player, tierOverrides, contractSeasonsLeft, tournaments: plan.tournaments, retirement };
 }
 
 /** Adónde te lleva la opción elegida. */
@@ -276,7 +344,7 @@ function resolveMovement(
       loan: {
         parentClubId: contract ?? option.clubId,
         loanClubId: option.clubId,
-        returnAge: state.player.age + PERIOD_SEASONS,
+        returnAge: state.player.age + LOAN_SEASONS,
       },
     };
   }
@@ -294,78 +362,200 @@ function resolveMovement(
   return { clubId: state.clubId, contractClubId: contract, loan: state.loan };
 }
 
+// ── Forzar salida ────────────────────────────────────────────────────
+
+/** Probabilidad de que el club te deje salir, según lo que juegues. */
+function exitAcceptOdds(role: string): number {
+  if (role === "substitute") return 0.9;
+  if (role === "low_rotation") return 0.75;
+  if (role === "high_rotation") return 0.55;
+  return 0.4; // titular: el club se resiste a soltarte
+}
+
+/**
+ * Pides salir. Si el club acepta, se abre el mercado en el acto (traspaso o
+ * cesión). Si te retiene, juegas la temporada con menos protagonismo.
+ */
+function resolveForceExit(state: CareerState): CareerState {
+  let r = rngOf(state);
+  const club = state.clubId ? getClub(state.clubId) : null;
+  if (!club) return withNextDecision({ ...state, step: state.step + 1, rngState: r.state });
+
+  const role = resolveRole(state.player, club, NO_MODIFIERS);
+  const roll = chance(r, exitAcceptOdds(role));
+  r = roll.rng;
+  const resolution: Resolution = { kind: roll.value ? "positive" : "negative", accepted: roll.value };
+
+  if (roll.value) {
+    // Te dejan ir: eliges destino ya, sin jugar la temporada aquí.
+    return exitOffersDecision({ ...state, step: state.step + 1, lastResolution: resolution }, r);
+  }
+
+  // Te retienen: juegas la temporada con el rol un escalón por debajo.
+  const mods: SeasonModifiers = { ...NO_MODIFIERS, roleShift: -1 };
+  const step = playSeason(state, r, state.player, state.clubId, state.loan, state.contractSeasonsLeft, {
+    ...state.clubTierOverrides,
+  }, mods);
+
+  const next: CareerState = {
+    ...state,
+    step: state.step + 1,
+    rngState: step.rng.state,
+    player: step.player,
+    contractSeasonsLeft: step.contractSeasonsLeft,
+    seasons: step.seasons,
+    totals: accumulate(step.seasons),
+    upcomingTournaments: step.tournaments,
+    clubTierOverrides: step.tierOverrides,
+    retirement: step.retirement,
+    currentEvent: null,
+    lastResolution: resolution,
+    phase: step.retirement ? "summary" : "decision",
+  };
+  if (step.retirement) return next;
+  return withNextDecision(next);
+}
+
 // ── Siguiente decisión ───────────────────────────────────────────────
 
 function withNextDecision(state: CareerState): CareerState {
   let r = rngOf(state);
+  const club = state.clubId ? getClub(state.clubId) : null;
 
   // 1. Vuelves de una cesión: hay que decidir qué pasa contigo.
   if (state.loan && state.player.age >= state.loan.returnAge) {
     return postLoanDecision(state, r);
   }
 
-  // 2. ¿Te renuevan? Si el club te queda muy grande y no juegas, no.
-  const club = state.clubId ? getClub(state.clubId) : null;
-  if (club) {
+  // 2. Contrato agotado: renovar, cambiar de aire o retirarse.
+  if (!state.loan && state.contractSeasonsLeft <= 0) {
+    if (!club) return transferDecision(state, r, false);
     const gap = state.player.overall - levelBarOf(club);
     const role = resolveRole(state.player, club, NO_MODIFIERS);
-    if (gap <= -8 && (role === "substitute" || role === "low_rotation")) {
-      const roll = chance(r, 0.5);
-      r = roll.rng;
-      if (roll.value) return contractEndDecision(state, r);
-    }
+    const notRetained = gap <= -8 && (role === "substitute" || role === "low_rotation");
+    return notRetained ? contractEndDecision(state, r) : transferDecision(state, r, true);
   }
 
   // 3. Cesión para foguearse, si eres joven y no cuentas.
   if (club && state.player.age <= 21 && !state.loan) {
     const role = resolveRole(state.player, club, NO_MODIFIERS);
     if (role === "substitute" || role === "low_rotation") {
-      const roll = chance(r, 0.6);
+      const roll = chance(r, 0.5);
       r = roll.rng;
       if (roll.value) return loanDecision(state, r);
     }
   }
 
   // 4. Un dilema de vestuario, que es la sal del juego.
-  const eventRoll = chance(r, 0.6);
+  const eventRoll = chance(r, 0.5);
   r = eventRoll.rng;
   if (eventRoll.value) {
     const built = careerEventDecision(state, r);
     if (built) return built;
   }
 
-  // 5. Y si no, mercado de pases.
-  return transferDecision(state, r);
+  // 5. Y si no, una temporada más en tu club.
+  return continueDecision(state, r);
 }
 
-function transferDecision(state: CareerState, rng: Rng): CareerState {
+/** Añade la duración de contrato a una lista de clubes ofrecidos. */
+function withContracts(
+  rng: Rng,
+  clubs: { id: string }[],
+  age: number
+): { rng: Rng; offers: { clubId: string; contractSeasons: number }[] } {
+  let r = rng;
+  const offers = clubs.map((c) => {
+    const len = contractLength(r, age);
+    r = len.rng;
+    return { clubId: c.id, contractSeasons: len.seasons };
+  });
+  return { rng: r, offers };
+}
+
+/** Pantalla de "sigue una temporada más", con opción de forzar salida. */
+function continueDecision(state: CareerState, rng: Rng): CareerState {
+  const options: DecisionOption[] = [{ id: `continue-${state.step}`, type: "continue" }];
+  // Solo puedes forzar la salida si tienes club, no estás cedido y aún te
+  // queda contrato por cumplir.
+  if (state.clubId && !state.loan && state.contractSeasonsLeft > 1) {
+    options.push({ id: `force-exit-${state.step}`, type: "force_exit" });
+  }
+  if (state.player.age >= 34) options.push({ id: `retire-${state.step}`, type: "retire" });
+
+  return {
+    ...state,
+    rngState: rng.state,
+    currentEvent: { id: eventId(state, "continue"), kind: "continue", age: state.player.age, options },
+  };
+}
+
+/** Ofertas tras conseguir salir: puedes fichar o irte cedido. */
+function exitOffersDecision(state: CareerState, rng: Rng): CareerState {
+  const transfers = generateOffers({
+    rng,
+    overall: state.player.overall,
+    countryCode: state.player.countryCode,
+    currentClubId: state.clubId,
+    count: 2,
+  });
+  const loans = generateLoanOffers(transfers.rng, state.player.overall, state.player.countryCode, state.clubId);
+  const withLen = withContracts(loans.rng, transfers.clubs, state.player.age);
+
+  const options: DecisionOption[] = withLen.offers.map((o) => ({
+    id: `exit-${state.step}-${o.clubId}`,
+    type: "join_club" as const,
+    clubId: o.clubId,
+    contractSeasons: o.contractSeasons,
+  }));
+  for (const c of loans.clubs) {
+    options.push({ id: `exit-loan-${state.step}-${c.id}`, type: "join_loan", clubId: c.id });
+  }
+  if (state.clubId) options.push({ id: `stay-${state.step}`, type: "stay", clubId: state.clubId });
+
+  return {
+    ...state,
+    rngState: withLen.rng.state,
+    currentEvent: { id: eventId(state, "forced_exit"), kind: "forced_exit", age: state.player.age, options },
+  };
+}
+
+/** Mercado de fichajes. `renewal` añade la opción de renovar con tu club. */
+function transferDecision(state: CareerState, rng: Rng, renewal: boolean): CareerState {
   const offers = generateOffers({
     rng,
     overall: state.player.overall,
     countryCode: state.player.countryCode,
     currentClubId: state.clubId,
   });
-  const options: DecisionOption[] = offers.clubs.map((c) => ({
-    id: `transfer-${state.step}-${c.id}`,
+  const withLen = withContracts(offers.rng, offers.clubs, state.player.age);
+
+  const options: DecisionOption[] = withLen.offers.map((o) => ({
+    id: `transfer-${state.step}-${o.clubId}`,
     type: "join_club" as const,
-    clubId: c.id,
+    clubId: o.clubId,
+    contractSeasons: o.contractSeasons,
   }));
-  if (state.clubId) {
-    options.unshift({ id: `stay-${state.step}`, type: "stay", clubId: state.clubId });
+
+  let r: Rng = { state: withLen.rng.state };
+  if (renewal && state.clubId) {
+    const renew = contractLength(r, state.player.age);
+    r = renew.rng;
+    options.unshift({ id: `stay-${state.step}`, type: "stay", clubId: state.clubId, contractSeasons: renew.seasons });
   }
   if (state.player.age >= 32) {
     options.push({ id: `retire-${state.step}`, type: "retire" });
   }
   return {
     ...state,
-    rngState: offers.rng.state,
+    rngState: r.state,
     currentEvent: { id: eventId(state, "transfer"), kind: "transfer", age: state.player.age, options },
   };
 }
 
 function loanDecision(state: CareerState, rng: Rng): CareerState {
   const offers = generateLoanOffers(rng, state.player.overall, state.player.countryCode, state.clubId);
-  if (!offers.clubs.length) return transferDecision(state, offers.rng);
+  if (!offers.clubs.length) return continueDecision(state, offers.rng);
 
   const options: DecisionOption[] = offers.clubs.map((c) => ({
     id: `loan-${state.step}-${c.id}`,
@@ -393,26 +583,30 @@ function postLoanDecision(state: CareerState, rng: Rng): CareerState {
     currentClubId: parentId,
     count: 2,
   });
+  const withLen = withContracts(offers.rng, offers.clubs, state.player.age);
 
   const options: DecisionOption[] = [];
   if (parentId) {
+    // Volver al club matriz: si te quieren, renuevas; si no, firmas definitivo.
+    const home = contractLength({ state: withLen.rng.state }, state.player.age);
     options.push({
       id: `return-${state.step}`,
       type: retained ? "stay" : "permanent_transfer",
       clubId: parentId,
+      contractSeasons: home.seasons,
     });
   }
-  for (const c of offers.clubs) {
+  for (const o of withLen.offers) {
     options.push(
       retained
-        ? { id: `transfer-${state.step}-${c.id}`, type: "join_club", clubId: c.id }
-        : { id: `loan-${state.step}-${c.id}`, type: "join_loan", clubId: c.id }
+        ? { id: `transfer-${state.step}-${o.clubId}`, type: "join_club", clubId: o.clubId, contractSeasons: o.contractSeasons }
+        : { id: `loan-${state.step}-${o.clubId}`, type: "join_loan", clubId: o.clubId }
     );
   }
 
   return {
     ...state,
-    rngState: offers.rng.state,
+    rngState: withLen.rng.state,
     loan: null,
     clubId: parentId,
     currentEvent: {
@@ -431,16 +625,19 @@ function contractEndDecision(state: CareerState, rng: Rng): CareerState {
     countryCode: state.player.countryCode,
     currentClubId: state.clubId,
   });
-  const options: DecisionOption[] = offers.clubs.map((c) => ({
-    id: `free-${state.step}-${c.id}`,
+  const withLen = withContracts(offers.rng, offers.clubs, state.player.age);
+
+  const options: DecisionOption[] = withLen.offers.map((o) => ({
+    id: `free-${state.step}-${o.clubId}`,
     type: "join_club" as const,
-    clubId: c.id,
+    clubId: o.clubId,
+    contractSeasons: o.contractSeasons,
   }));
   if (state.player.age >= 30) options.push({ id: `retire-${state.step}`, type: "retire" });
 
   return {
     ...state,
-    rngState: offers.rng.state,
+    rngState: withLen.rng.state,
     currentEvent: {
       id: eventId(state, "contract_non_renewal"),
       kind: "contract_non_renewal",

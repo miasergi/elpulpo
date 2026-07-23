@@ -7,6 +7,8 @@
 // ║                                                                    ║
 // ║  Los huecos {así} los rellena `fillPlaceholders`.                  ║
 // ╚══════════════════════════════════════════════════════════════════╝
+import { CONTINENTAL_CLUB_CUP, SECONDARY_CONTINENTAL_CUP } from "./constants";
+import { getLeague } from "./data";
 import type { Award, DecisionKind, SquadRole, Trophy } from "./types";
 
 export interface OutcomeText {
@@ -392,8 +394,20 @@ export const DECISION_TEXT: Record<DecisionKind, { title: string; description: s
     title: "Fin de ciclo",
     description: "Tu club no te renueva. Toca decidir el siguiente paso.",
   },
+  forced_exit: {
+    title: "Vía libre para salir",
+    description: "Tu club acepta negociar tu salida. Elige cómo sigues: un fichaje o una cesión.",
+  },
+  continue: {
+    title: "Nueva temporada",
+    description: "Sigue tu carrera un año más.",
+  },
   career_event: { title: "", description: "" },
 };
+
+export const CONTINUE_LABEL = "Jugar la temporada";
+export const FORCE_EXIT_LABEL = "Pedir salir del club";
+export const FORCE_EXIT_HINT = "El club puede aceptar y abrirte el mercado, o retenerte.";
 
 export const OPTION_LABEL = {
   join: (team: string) => `Fichar por ${team}`,
@@ -435,6 +449,36 @@ export const AWARD_EMOJI: Record<Award, string> = {
   golden_boot: "👟",
   golden_glove: "🧤",
 };
+
+/**
+ * Nombre oficial del trofeo según la competición: la liga del país, su copa,
+ * la copa continental que le corresponde… en vez del genérico "Liga"/"Copa".
+ *
+ * (No usamos fotos oficiales de los trofeos: son imágenes con derechos, así
+ *  que damos el nombre real con su icono.)
+ */
+export function trophyLabel(
+  trophy: Trophy,
+  leagueId?: string,
+  nationalTournament?: string
+): { name: string; emoji: string } {
+  const league = leagueId ? getLeague(leagueId) : null;
+  const conf = league?.confederation ?? "UEFA";
+  switch (trophy) {
+    case "league":
+      return { name: league?.name ?? "Liga", emoji: "🏆" };
+    case "cup":
+      return { name: league?.cup ?? "Copa nacional", emoji: "🥇" };
+    case "continental_primary":
+      return { name: CONTINENTAL_CLUB_CUP[conf] ?? "Copa continental", emoji: "🌍" };
+    case "continental_secondary":
+      return { name: SECONDARY_CONTINENTAL_CUP[conf] ?? "Segunda continental", emoji: "🥈" };
+    case "national_continental":
+      return { name: nationalTournament ?? "Torneo continental", emoji: "🌎" };
+    case "world_cup":
+      return { name: "Mundial", emoji: "🌐" };
+  }
+}
 
 export const ROLE_NAME: Record<SquadRole, string> = {
   starter: "Titular",

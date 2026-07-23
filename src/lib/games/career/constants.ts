@@ -11,8 +11,13 @@ import type { PlayStyle, Position, SquadRole, Trophy } from "./types";
 
 export const START_AGE = 16;
 export const RETIREMENT_AGE = 40;
-/** Temporadas que se simulan entre una decisión y la siguiente. */
-export const PERIOD_SEASONS = 2;
+/** Ahora se simula y se enseña una temporada cada vez. */
+export const SEASONS_PER_STEP = 1;
+/** Cuántas temporadas dura una cesión. */
+export const LOAN_SEASONS = 2;
+/** Duración de contrato al fichar: [mínimo, máximo] temporadas. */
+export const CONTRACT_MIN = 2;
+export const CONTRACT_MAX = 4;
 /** Con 26 o más y por debajo de esta media, te retiras aunque no toque. */
 export const DECLINE_RETIREMENT_OVERALL = 50;
 /** Ofertas que recibes en cada mercado. */
